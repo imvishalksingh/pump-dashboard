@@ -3,7 +3,7 @@ import axios from "axios";
 const getBaseURL = () => {
   if (import.meta.env.PROD) {
     // In production, use your deployed backend URL
-    return import.meta.env.VITE_API_URL || "https://your-backend.railway.app/api";
+    return import.meta.env.VITE_API_URL || "https://pump-backend-xn6u.onrender.com";
   }
   // In development, use proxy
   return "/api";
