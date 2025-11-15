@@ -17,7 +17,7 @@ import {
   PriceUpdateData, 
   ProductTableItem,
   CreateProductData 
-} from "@/types/Product";
+} from "@/types/product";
 import { productApi } from "@/services/productApi";
 
 export const PriceProductPage = () => {
