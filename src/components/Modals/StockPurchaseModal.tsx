@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface StockPurchaseModalProps {
   open: boolean;
@@ -90,7 +90,7 @@ const [formData, setFormData] = useState({
   try {
     console.log("Submitting purchase data:", purchaseData); // Debug log
     
-    await axios.post("/api/stock", purchaseData);
+    await api.post("/stock", purchaseData);
 
     toast({
       title: "Success",

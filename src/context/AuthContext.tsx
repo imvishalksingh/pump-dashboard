@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { Role } from "@/utils/roles";
 
 // Remove the API_URL since we're using relative paths with proxy
@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const userData = JSON.parse(storedUser);
         setUser(userData);
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       } catch (error) {
         console.error("Error parsing stored user:", error);
         localStorage.removeItem("user");
@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const checkInvitation = async (token: string, email: string): Promise<{ valid: boolean; data?: any; message?: string }> => {
     try {
       console.log("🔍 Checking invitation:", { token, email });
-      const res = await axios.get(`/api/auth/invitation/${token}?email=${encodeURIComponent(email)}`);
+      const res = await api.get(`/auth/invitation/${token}?email=${encodeURIComponent(email)}`);
       console.log("✅ Invitation check response:", res.data);
       return { valid: true, data: res.data };
     } catch (err: any) {
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("🎯 Attempting registration with invitation:", email);
       
-      const res = await axios.post(`/api/auth/register`, { 
+      const res = await api.post(`/auth/register`, { 
         email, 
         password, 
         name, 
@@ -82,7 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("token", userData.token);
 
-      axios.defaults.headers.common["Authorization"] = `Bearer ${userData.token}`;
+      api.defaults.headers.common["Authorization"] = `Bearer ${userData.token}`;
       return { success: true };
     } catch (err: any) {
       console.error("❌ Registration error:", err);
@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log("🔐 Attempting login:", email);
-      const res = await axios.post(`/api/auth/login`, { email, password });
+      const res = await api.post(`/auth/login`, { email, password });
       const userData = res.data;
       console.log("✅ Login successful:", userData.email);
 
@@ -103,7 +103,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("token", userData.token);
 
-      axios.defaults.headers.common["Authorization"] = `Bearer ${userData.token}`;
+      api.defaults.headers.common["Authorization"] = `Bearer ${userData.token}`;
       return { success: true };
     } catch (err: any) {
       console.error("❌ Login error:", err);
@@ -115,14 +115,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ---------- LOGOUT ----------
   const logout = async () => {
     try {
-      await axios.post(`/api/auth/logout`);
+      await api.post(`/auth/logout`);
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
       setUser(null);
       localStorage.removeItem("user");
       localStorage.removeItem("token");
-      delete axios.defaults.headers.common["Authorization"];
+      delete api.defaults.headers.common["Authorization"];
     }
   };
 

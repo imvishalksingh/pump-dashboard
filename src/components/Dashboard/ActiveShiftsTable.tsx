@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface ActiveShift {
@@ -38,7 +38,7 @@ export const ActiveShiftsTable = () => {
   const fetchActiveShifts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/shifts");
+      const response = await api.get("/shifts");
       
       // Filter only active shifts and transform data
       const shifts = response.data
@@ -76,7 +76,7 @@ export const ActiveShiftsTable = () => {
       const endReading = currentReading + Math.floor(Math.random() * 1000) + 500;
       const cashCollected = Math.floor(Math.random() * 50000) + 10000;
       
-      await axios.put(`/api/shifts/end/${shiftId}`, {
+      await api.put(`/shifts/end/${shiftId}`, {
         endReading,
         cashCollected,
         notes: "Shift ended from dashboard"

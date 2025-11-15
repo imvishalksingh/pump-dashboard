@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface StockData {
@@ -26,7 +26,7 @@ export const StockTable = () => {
 
   const fetchStockData = async () => {
     try {
-      const response = await axios.get("/api/stock/stats");
+      const response = await api.get("/stock/stats");
       setStockData(response.data.products || []);
     } catch (error: any) {
       console.error("Failed to fetch stock data:", error);

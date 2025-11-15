@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface AddPumpModalProps {
   open: boolean;
@@ -52,7 +52,7 @@ export const AddPumpModal = ({ open, onOpenChange, onPumpAdded }: AddPumpModalPr
     setLoading(true);
 
     try {
-      await axios.post("/api/pumps", {
+      await api.post("/pumps", {
         name: formData.name,
         location: formData.location,
         fuelType: formData.fuelType,

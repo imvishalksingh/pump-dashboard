@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Clock, Play, Square } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Shift {
   _id: string;
@@ -54,7 +54,7 @@ export const ShiftTable = ({ refresh = 0 }: ShiftTableProps) => {
   const fetchShifts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/shifts");
+      const response = await api.get("/shifts");
       console.log("Shifts API Response:", response.data);
       setShifts(response.data);
     } catch (error: any) {
@@ -76,7 +76,7 @@ export const ShiftTable = ({ refresh = 0 }: ShiftTableProps) => {
 
   const handleApproveShift = async (shiftId: string) => {
     try {
-      await axios.put(`/api/shifts/${shiftId}`, { status: "Completed" });
+      await api.put(`/shifts/${shiftId}`, { status: "Completed" });
       toast({
         title: "Success",
         description: "Shift approved successfully",

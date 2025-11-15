@@ -9,7 +9,7 @@ import { StockPurchaseModal } from "@/components/Modals/StockPurchaseModal";
 import { StockAdjustment } from "@/components/Stock/StockAdjustment";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface FuelStock {
   _id: string;
@@ -54,11 +54,11 @@ export const FuelStockPage = () => {
       setLoading(true);
       
       // Fetch latest stocks for dashboard cards
-      const statsResponse = await axios.get("/api/stock/stats");
+      const statsResponse = await api.get("/stock/stats");
       setStats(statsResponse.data);
       
       // Fetch all stock entries for the table
-      const stocksResponse = await axios.get("/api/stock");
+      const stocksResponse = await api.get("/stock");
       setStocks(stocksResponse.data);
       
     } catch (error: any) {

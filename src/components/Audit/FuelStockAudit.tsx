@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, AlertTriangle, Calculator, Droplet, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface StockDiscrepancy {
@@ -65,7 +65,7 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
       setLoading(true);
       console.log("🔄 Fetching stock audit data...");
       
-      const response = await axios.get("/api/audit/stock/discrepancies");
+      const response = await api.get("/audit/stock/discrepancies");
       console.log("📊 Stock audit response:", response.data);
       
       setAuditData(response.data);
@@ -86,7 +86,7 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
       setProcessingId(adjustmentId);
       console.log(`🔄 ${approved ? 'Approving' : 'Rejecting'} stock adjustment:`, adjustmentId);
       
-      const response = await axios.post(`/api/audit/stock/adjustments/${adjustmentId}/approve`, {
+      const response = await api.post(`/audit/stock/adjustments/${adjustmentId}/approve`, {
         approved,
         notes: notes || (approved ? "Stock adjustment approved" : "Stock adjustment rejected")
       });

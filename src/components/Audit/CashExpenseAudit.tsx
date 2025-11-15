@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, FileText, Banknote, Loader2, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface CashEntry {
@@ -53,7 +53,7 @@ export const CashExpenseAudit = ({ onUpdate }: CashExpenseAuditProps) => {
   const fetchPendingEntries = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/audit/cash/pending");
+      const response = await api.get("/audit/cash/pending");
       console.log("💰 Cash entries response:", response.data);
       setEntries(response.data);
     } catch (error: any) {
@@ -73,7 +73,7 @@ export const CashExpenseAudit = ({ onUpdate }: CashExpenseAuditProps) => {
       setProcessingId(entryId);
       console.log(`🔄 ${approved ? 'Verifying' : 'Rejecting'} cash entry:`, entryId);
       
-      const response = await axios.post(`/api/audit/cash/${entryId}/verify`, {
+      const response = await api.post(`/audit/cash/${entryId}/verify`, {
         approved,
         notes
       });

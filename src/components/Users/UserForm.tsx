@@ -19,7 +19,7 @@ import {
 import { UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 export const UserForm = () => {
   const [open, setOpen] = useState(false);
@@ -58,13 +58,13 @@ export const UserForm = () => {
 
     try {
       // Use the invitation system to create the user
-      const invitationResponse = await axios.post("/api/admin/invitations", {
+      const invitationResponse = await api.post("/admin/invitations", {
         email: formData.email,
         role: formData.role
       });
 
       // Now register the user with the invitation token
-      await axios.post("/api/auth/register", {
+      await api.post("/auth/register", {
         name: formData.name,
         email: formData.email,
         password: formData.password,

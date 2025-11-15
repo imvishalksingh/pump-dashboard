@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Search, Calculator, Car, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 

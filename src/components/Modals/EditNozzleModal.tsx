@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Nozzle {
   _id: string;
@@ -58,7 +58,7 @@ export const EditNozzleModal = ({ open, onOpenChange, nozzle, onNozzleUpdated }:
 
     setLoading(true);
     try {
-      await axios.put(`/api/nozzles/${nozzle._id}`, formData);
+      await api.put(`/nozzles/${nozzle._id}`, formData);
       toast({
         title: "Success",
         description: "Nozzle updated successfully",

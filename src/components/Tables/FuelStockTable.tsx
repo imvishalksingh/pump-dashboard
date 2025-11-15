@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus, Minus, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface FuelStock {
   _id: string;
@@ -37,7 +37,7 @@ export const FuelStockTable = ({ stocks, onRefresh }: FuelStockTableProps) => {
     }
 
     try {
-      await axios.delete(`/api/stock/${stockId}`);
+      await api.delete(`/stock/${stockId}`);
       toast({
         title: "Success",
         description: "Stock entry deleted successfully",

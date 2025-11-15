@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "../../context/AuthContext";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface SettingsData {
   companyName: string;
@@ -84,7 +84,7 @@ export const SettingsForm = () => {
   const loadSettings = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get("/api/settings");
+      const response = await api.get("/settings");
       
       if (response.data) {
         setSettings(response.data);
@@ -106,7 +106,7 @@ export const SettingsForm = () => {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const response = await axios.put("/api/settings", settings);
+      const response = await api.put("/settings", settings);
 
       if (response.data) {
         setSettings(response.data.settings);
@@ -135,7 +135,7 @@ export const SettingsForm = () => {
         return;
       }
 
-      const response = await axios.post("/api/settings/reset");
+      const response = await api.post("/settings/reset");
 
       if (response.data) {
         setSettings(response.data.settings);

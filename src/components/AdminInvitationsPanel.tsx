@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Copy, RefreshCw, Trash2 } from "lucide-react";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Invitation {
   _id: string;
@@ -39,7 +39,7 @@ const AdminInvitationsPanel = () => {
     try {
       setIsFetching(true);
       console.log("🔍 Fetching invitations...");
-      const response = await axios.get("/api/admin/invitations");
+      const response = await api.get("/admin/invitations");
       console.log("✅ API Response:", response.data);
       
       // FIX: Handle the response format correctly
@@ -74,7 +74,7 @@ const AdminInvitationsPanel = () => {
     setIsLoading(true);
     try {
       console.log("📧 Creating invitation for:", email);
-      const response = await axios.post("/api/admin/invitations", { email, role });
+      const response = await api.post("/admin/invitations", { email, role });
       console.log("✅ Invitation created:", response.data);
       
       toast({
@@ -105,7 +105,7 @@ const AdminInvitationsPanel = () => {
 
   const resendInvitation = async (id: string) => {
     try {
-      const response = await axios.post(`/api/admin/invitations/${id}/resend`);
+      const response = await api.post(`/admin/invitations/${id}/resend`);
       
       toast({
         title: "Invitation resent!",
@@ -129,7 +129,7 @@ const AdminInvitationsPanel = () => {
 
   const deleteInvitation = async (id: string) => {
     try {
-      await axios.delete(`/api/admin/invitations/${id}`);
+      await api.delete(`/admin/invitations/${id}`);
       
       toast({
         title: "Invitation deleted",

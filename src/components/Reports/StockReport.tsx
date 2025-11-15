@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/Shared/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { PrintReport } from "./PrintReport";
@@ -47,7 +47,7 @@ export const StockReport = forwardRef<ReportHandle>((props, ref) => {
       setLoading(true);
       console.log("🔄 Fetching stock report...");
       
-      const response = await axios.get("/api/reports/stock");
+      const response = await api.get("/reports/stock");
       
       console.log("📊 Stock report API response:", response.data);
 

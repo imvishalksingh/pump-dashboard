@@ -3,7 +3,7 @@ import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Card } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { PrintReport } from "./PrintReport";
@@ -46,7 +46,7 @@ export const DailyReport = forwardRef<ReportHandle>((props, ref) => {
       console.log("🔄 Fetching daily report...");
       
       const today = new Date().toISOString().split('T')[0];
-      const response = await axios.get(`/api/reports/daily?date=${today}`);
+      const response = await api.get(`/reports/daily?date=${today}`);
       
       console.log("📊 Daily report API response:", response.data);
 

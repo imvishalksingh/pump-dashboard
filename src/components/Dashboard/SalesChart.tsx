@@ -2,7 +2,7 @@
 import { Card } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface SalesData {
@@ -38,7 +38,7 @@ export const SalesChart = () => {
   const fetchSalesData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/sales");
+      const response = await api.get("/sales");
       const sales: Sale[] = response.data;
       
       // Process sales data for the last 7 days

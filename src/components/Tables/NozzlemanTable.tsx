@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Star } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Nozzleman {
   _id: string;
@@ -43,7 +43,7 @@ export const NozzlemanTable = ({ onEdit, refresh = 0 }: NozzlemanTableProps) => 
   const fetchNozzlemen = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/nozzlemen");
+      const response = await api.get("/nozzlemen");
       setNozzlemen(response.data);
     } catch (error: any) {
       console.error("Failed to fetch nozzlemen:", error);
@@ -63,7 +63,7 @@ export const NozzlemanTable = ({ onEdit, refresh = 0 }: NozzlemanTableProps) => 
     }
 
     try {
-      await axios.delete(`/api/nozzlemen/${id}`);
+      await api.delete(`/nozzlemen/${id}`);
       toast({
         title: "Success",
         description: "Nozzleman deleted successfully",

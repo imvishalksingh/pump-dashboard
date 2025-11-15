@@ -10,7 +10,7 @@ import { NozzlemanAssignmentTable } from "@/components/Tables/NozzlemanAssignmen
 import { NozzlemanFormModal } from "@/components/Modals/NozzlemanFormModal";
 import { NozzleAssignModal } from "@/components/Modals/NozzleAssignModal";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Nozzleman {
   _id: string;
@@ -42,7 +42,7 @@ export default function NozzlemanManagementPage() {
 
   const fetchNozzlemen = async () => {
     try {
-      const response = await axios.get("/api/nozzlemen");
+      const response = await api.get("/nozzlemen");
       setNozzlemen(response.data);
     } catch (error: any) {
       console.error("Failed to fetch nozzlemen:", error);
@@ -56,7 +56,7 @@ export default function NozzlemanManagementPage() {
 
   const handleAddNozzleman = async (data: any) => {
     try {
-      const response = await axios.post("/api/nozzlemen", data);
+      const response = await api.post("/nozzlemen", data);
       setNozzlemen(prev => [...prev, response.data]);
       setShowNozzlemanModal(false);
       toast({
@@ -81,7 +81,7 @@ export default function NozzlemanManagementPage() {
     if (!editingNozzleman) return;
 
     try {
-      const response = await axios.put(`/api/nozzlemen/${editingNozzleman._id}`, data);
+      const response = await api.put(`/nozzlemen/${editingNozzleman._id}`, data);
       setNozzlemen(prev => prev.map(n => 
         n._id === editingNozzleman._id ? response.data : n
       ));
@@ -102,7 +102,7 @@ export default function NozzlemanManagementPage() {
 
   const handleAssignNozzle = async (data: any) => {
     try {
-      await axios.post("/api/assignments", data);
+      await api.post("/assignments", data);
       setShowAssignModal(false);
       setRefreshTrigger(prev => prev + 1);
       toast({

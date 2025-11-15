@@ -11,7 +11,7 @@ import { CreditCustomerFormModal } from "@/components/Modals/CreditCustomerFormM
 import { LedgerPaymentModal } from "@/components/Modals/LedgerPaymentModal";
 import { Plus, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Customer {
   _id: string;
@@ -58,8 +58,8 @@ export default function CreditCustomerPage() {
     try {
       setLoading(true);
       const [customersRes, ledgerRes] = await Promise.all([
-        axios.get("/api/customers"),
-        axios.get("/api/customers/ledger/all")
+        api.get("/customers"),
+        api.get("/customers/ledger/all")
       ]);
       setCustomers(customersRes.data);
       setLedgerEntries(ledgerRes.data);
@@ -81,7 +81,7 @@ export default function CreditCustomerPage() {
 
   const handleAddCustomer = async (customerData: any) => {
     try {
-      await axios.post("/api/customers", customerData);
+      await api.post("/customers", customerData);
       toast({
         title: "Success",
         description: "Customer added successfully",
@@ -99,7 +99,7 @@ export default function CreditCustomerPage() {
 
   const handleEditCustomer = async (customerId: string, customerData: any) => {
     try {
-      await axios.put(`/api/customers/${customerId}`, customerData);
+      await api.put(`/customers/${customerId}`, customerData);
       toast({
         title: "Success",
         description: "Customer updated successfully",
@@ -120,7 +120,7 @@ export default function CreditCustomerPage() {
     }
 
     try {
-      await axios.delete(`/api/customers/${customerId}`);
+      await api.delete(`/customers/${customerId}`);
       toast({
         title: "Success",
         description: "Customer deleted successfully",
@@ -167,7 +167,7 @@ export default function CreditCustomerPage() {
     console.log("🔵 Sending to API - URL:", `/api/customers/${customerId}/payment`);
     console.log("🔵 Payload:", cleanPayload);
 
-    const response = await axios.post(`/api/customers/${customerId}/payment`, cleanPayload);
+    const response = await api.post(`/customers/${customerId}/payment`, cleanPayload);
     console.log("🟢 API Response:", response.data);
 
     toast({

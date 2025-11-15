@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Assignment {
   _id: string;
@@ -44,7 +44,7 @@ export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTab
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/assignments");
+      const response = await api.get("/assignments");
       setAssignments(response.data);
     } catch (error: any) {
       console.error("Failed to fetch assignments:", error);
@@ -64,7 +64,7 @@ export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTab
     }
 
     try {
-      await axios.delete(`/api/assignments/${id}`);
+      await api.delete(`/assignments/${id}`);
       toast({
         title: "Success",
         description: "Assignment removed successfully",

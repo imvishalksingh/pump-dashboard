@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Search, MoreVertical, Edit, Trash2, Mail, User } from "lucide-react";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface User {
   _id: string;
@@ -32,7 +32,7 @@ export const UserList = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/admin/users");
+      const response = await api.get("/admin/users");
       setUsers(response.data);
     } catch (error: any) {
       console.error("Failed to fetch users:", error);
@@ -48,7 +48,7 @@ export const UserList = () => {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      await axios.patch(`/api/admin/users/${userId}/role`, { role: newRole });
+      await api.patch(`/api/admin/users/${userId}/role`, { role: newRole });
       
       // Update local state
       setUsers(users.map(user => 
@@ -74,7 +74,7 @@ export const UserList = () => {
     }
 
     try {
-      await axios.delete(`/api/admin/users/${userId}`);
+      await api.delete(`/admin/users/${userId}`);
       setUsers(users.filter(user => user._id !== userId));
       
       toast({

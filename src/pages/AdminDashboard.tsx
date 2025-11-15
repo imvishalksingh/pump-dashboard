@@ -7,7 +7,7 @@ import { AlertsWidget } from "@/components/Dashboard/AlertsWidget";
 import { QuickActions } from "@/components/Dashboard/QuickActions";
 import { ShiftOverview } from "@/components/Dashboard/ShiftOverview";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardStats {
@@ -45,9 +45,9 @@ const AdminDashboard = () => {
       
       // Use your existing API endpoints
       const [salesStats, shiftStats, stockStats] = await Promise.all([
-        axios.get("/api/sales/stats"),
-        axios.get("/api/shifts/stats"),
-        axios.get("/api/stock/stats") // You might need to create this if not exists
+        api.get("/sales/stats"),
+        api.get("/shifts/stats"),
+        api.get("/stock/stats") // You might need to create this if not exists
       ]);
 
       console.log("📊 Dashboard Data:", {

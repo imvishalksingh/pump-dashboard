@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Pump {
   _id: string;
@@ -80,7 +80,7 @@ export const EditPumpModal = ({ open, onOpenChange, pump, onPumpUpdated }: EditP
     setLoading(true);
 
     try {
-      await axios.put(`/api/pumps/${pump._id}`, {
+      await api.put(`/pumps/${pump._id}`, {
         name: formData.name,
         location: formData.location,
         fuelType: formData.fuelType,

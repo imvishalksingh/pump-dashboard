@@ -2,7 +2,7 @@
 import { Shield, Clock, DollarSign, Droplet, FileCheck, CheckCircle, XCircle } from "lucide-react";
 import { StatCard } from "@/components/Dashboard/StatCard";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 import { AuditReport } from "@/components/Audit/AuditReport";
 import { FuelStockAudit } from "@/components/Audit/FuelStockAudit";
@@ -39,7 +39,7 @@ const AuditorDashboard = () => {
   const fetchAuditorStats = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/audit/stats");
+      const response = await api.get("/audit/stats");
       setStats(response.data);
       console.log("✅ Auditor stats loaded:", response.data);
     } catch (error: any) {

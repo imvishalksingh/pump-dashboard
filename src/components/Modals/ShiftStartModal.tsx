@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface SimplifiedNozzleman {
   _id: string;
@@ -61,7 +61,7 @@ export const ShiftStartModal = ({
 
   const fetchNozzlemen = async () => {
     try {
-      const response = await axios.get("/api/nozzlemen");
+      const response = await api.get("/nozzlemen");
       setNozzlemen(response.data.filter((n: any) => n.status === "Active"));
     } catch (error: any) {
       toast({
@@ -74,7 +74,7 @@ export const ShiftStartModal = ({
 
   const fetchNozzles = async () => {
     try {
-      const response = await axios.get("/api/nozzles");
+      const response = await api.get("/nozzles");
       setNozzles(response.data);
     } catch (error: any) {
       toast({
@@ -97,7 +97,7 @@ export const ShiftStartModal = ({
     }
 
     try {
-      await axios.post("/api/shifts/start", formData);
+      await api.post("/shifts/start", formData);
       toast({
         title: "Success",
         description: "Shift started successfully",

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Nozzle {
   _id: string;
@@ -40,7 +40,7 @@ export const NozzleTable = ({ onEdit, refresh = 0, onRefresh }: NozzleTableProps
   const fetchNozzles = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/nozzles");
+      const response = await api.get("/nozzles");
       setNozzles(response.data);
     } catch (error: any) {
       console.error("Failed to fetch nozzles:", error);
@@ -60,7 +60,7 @@ export const NozzleTable = ({ onEdit, refresh = 0, onRefresh }: NozzleTableProps
     }
 
     try {
-      await axios.delete(`/api/nozzles/${nozzleId}`);
+      await api.delete(`/nozzles/${nozzleId}`);
       toast({
         title: "Success",
         description: "Nozzle deleted successfully",

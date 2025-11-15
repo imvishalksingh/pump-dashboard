@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface SimplifiedNozzleman {
   _id: string;
@@ -73,7 +73,7 @@ export const NozzleAssignModal = ({
 
   const fetchNozzles = async () => {
     try {
-      const response = await axios.get("/api/nozzles");
+      const response = await api.get("/nozzles");
       setNozzles(response.data);
     } catch (error: any) {
       toast({
@@ -86,7 +86,7 @@ export const NozzleAssignModal = ({
 
   const fetchPumps = async () => {
     try {
-      const response = await axios.get("/api/pumps");
+      const response = await api.get("/pumps");
       setPumps(response.data);
     } catch (error: any) {
       toast({

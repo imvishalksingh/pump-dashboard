@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Pump {
   _id: string;
@@ -38,7 +38,7 @@ export const PumpTable = ({ onEdit, refresh, onRefresh }: PumpTableProps) => {
   const fetchPumps = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/pumps");
+      const response = await api.get("/pumps");
       setPumps(response.data);
     } catch (error: any) {
       console.error("Failed to fetch pumps:", error);
@@ -58,7 +58,7 @@ export const PumpTable = ({ onEdit, refresh, onRefresh }: PumpTableProps) => {
     }
 
     try {
-      await axios.delete(`/api/pumps/${pumpId}`);
+      await api.delete(`/pumps/${pumpId}`);
       toast({
         title: "Success",
         description: "Pump deleted successfully",

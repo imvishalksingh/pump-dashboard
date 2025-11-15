@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Settings } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface StockAdjustmentProps {
   onAdjustmentAdded: () => void;
@@ -82,7 +82,7 @@ export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => 
     try {
       console.log("📝 Submitting stock adjustment for approval...");
       
-      const response = await axios.post("/api/stock/adjustment", {
+      const response = await api.post("/stock/adjustment", {
         product: formData.product,
         adjustmentType: formData.adjustmentType,
         quantity: quantity,

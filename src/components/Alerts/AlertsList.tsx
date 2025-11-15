@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, AlertTriangle, Info, CheckCircle, Eye, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Notification {
   _id: string;
@@ -27,7 +27,7 @@ export const AlertsList = () => {
 
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get("/api/notifications");
+      const response = await api.get("/notifications");
       setNotifications(response.data);
     } catch (error: any) {
       console.error("Failed to fetch notifications:", error);
@@ -43,7 +43,7 @@ export const AlertsList = () => {
 
   const markAsRead = async (id: string) => {
     try {
-      await axios.put(`/api/notifications/${id}/read`);
+      await api.put(`/notifications/${id}/read`);
       setNotifications(prev => 
         prev.map(notif => 
           notif._id === id ? { ...notif, status: "Read" as const } : notif
@@ -64,7 +64,7 @@ export const AlertsList = () => {
 
   const markAllAsRead = async () => {
     try {
-      await axios.put("/api/notifications/read-all");
+      await api.put("/notifications/read-all");
       setNotifications(prev => 
         prev.map(notif => ({ ...notif, status: "Read" as const }))
       );

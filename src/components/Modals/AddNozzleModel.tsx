@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Pump {
   _id: string;
@@ -51,7 +51,7 @@ export const AddNozzleModal = ({ open, onOpenChange, onNozzleAdded }: AddNozzleM
 
   const fetchPumps = async () => {
     try {
-      const response = await axios.get("/api/pumps");
+      const response = await api.get("/pumps");
       setPumps(response.data);
     } catch (error: any) {
       toast({
@@ -76,7 +76,7 @@ export const AddNozzleModal = ({ open, onOpenChange, onNozzleAdded }: AddNozzleM
 
     setLoading(true);
     try {
-      await axios.post("/api/nozzles", formData);
+      await api.post("/nozzles", formData);
       toast({
         title: "Success",
         description: "Nozzle created successfully",

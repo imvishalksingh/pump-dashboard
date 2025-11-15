@@ -2,7 +2,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface Shift {
@@ -41,7 +41,7 @@ export const ShiftOverview = () => {
   const fetchActiveShifts = async () => {
     try {
       // Use the same API endpoint as your Shift Attendance page
-      const response = await axios.get("/api/shifts");
+      const response = await api.get("/shifts");
       console.log("All shifts response:", response.data);
       
       // Filter for active and pending approval shifts only

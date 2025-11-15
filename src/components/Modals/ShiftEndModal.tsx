@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface Shift {
   _id: string;
@@ -62,7 +62,7 @@ export const ShiftEndModal = ({ open, onOpenChange, onShiftEnded }: ShiftEndModa
 
   const fetchActiveShifts = async () => {
     try {
-      const response = await axios.get("/api/shifts");
+      const response = await api.get("/shifts");
       // Filter only active shifts
       const activeShifts = response.data.filter((shift: Shift) => shift.status === "Active");
       setShifts(activeShifts);
@@ -119,7 +119,7 @@ export const ShiftEndModal = ({ open, onOpenChange, onShiftEnded }: ShiftEndModa
 
     setLoading(true);
     try {
-      await axios.put(`/api/shifts/end/${selectedShiftId}`, {
+      await api.put(`/shifts/end/${selectedShiftId}`, {
         endReading: endReading,
         cashCollected: formData.cashCollected ? parseFloat(formData.cashCollected) : 0,
         notes: formData.notes

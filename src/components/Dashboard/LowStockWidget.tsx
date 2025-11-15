@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, TrendingDown, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface LowStockItem {
@@ -34,7 +34,7 @@ export const LowStockWidget = () => {
   const fetchLowStockData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/stock/stats");
+      const response = await api.get("/stock/stats");
       
       // Filter items that are below 30% capacity (low stock)
       const lowStockProducts = response.data.products.filter((product: any) => 
@@ -76,7 +76,7 @@ export const LowStockWidget = () => {
   const handleRequestRefill = async (product: string) => {
     try {
       // Create a stock purchase entry for refill
-      await axios.post("/api/stock", {
+      await api.post("/stock", {
         product,
         openingStock: 0, // This would be the current stock
         purchases: 10000, // Example refill quantity
@@ -119,7 +119,7 @@ export const LowStockWidget = () => {
 
       // Create refill requests for all critical items
       const refillPromises = criticalItems.map(item =>
-        axios.post("/api/stock", {
+        api.post("/stock", {
           product: item.product,
           openingStock: 0,
           purchases: 15000, // Bulk refill quantity

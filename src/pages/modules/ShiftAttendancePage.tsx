@@ -8,7 +8,7 @@ import { ShiftTable } from "@/components/Tables/ShiftTable";
 import { ShiftStartModal } from "@/components/Modals/ShiftStartModal";
 import { ShiftEndModal } from "@/components/Modals/ShiftEndModal";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 
 interface ShiftStats {
   activeShifts: number;
@@ -33,7 +33,7 @@ export const ShiftAttendancePage = () => {
 
   const fetchShiftStats = async () => {
     try {
-      const response = await axios.get("/api/shifts/stats"); // You'll need to create this endpoint
+      const response = await api.get("/shifts/stats"); // You'll need to create this endpoint
       setStats(response.data);
     } catch (error: any) {
       console.error("Failed to fetch shift stats:", error);

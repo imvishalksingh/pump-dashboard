@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, TrendingUp, FileText, Fuel, RefreshCw } from "lucide-react";
 import { SalesTable } from "@/components/Tables/SalesTable";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 import { Button } from "@/components/ui/button";
 
 interface Sale {
@@ -53,8 +53,8 @@ export const SalesManagementPage = () => {
       console.log("🔄 Fetching sales data...");
       
       const [salesRes, statsRes] = await Promise.all([
-        axios.get("/api/sales"),
-        axios.get("/api/sales/stats")
+        api.get("/sales"),
+        api.get("/sales/stats")
       ]);
       
       console.log("📊 Sales API response:", salesRes.data);

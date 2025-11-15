@@ -2,7 +2,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface Transaction {
@@ -31,7 +31,7 @@ export const RecentTransactions = () => {
   const fetchRecentTransactions = async () => {
     try {
       // Use the same API endpoint as your Sales Management page
-      const response = await axios.get("/api/sales");
+      const response = await api.get("/sales");
       console.log("All sales response:", response.data);
       
       // Get only the latest 5 transactions, sorted by creation date

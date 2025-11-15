@@ -5,7 +5,7 @@ import { DataTable } from "@/components/Shared/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import api from "@/utils/api";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { PrintReport } from "./PrintReport";
@@ -41,7 +41,7 @@ export const SalesReport = forwardRef<ReportHandle>((props, ref) => {
       setLoading(true);
       console.log("🔄 Fetching sales report...");
       
-      const response = await axios.get("/api/reports/sales?period=7days");
+      const response = await api.get("/reports/sales?period=7days");
       
       console.log("📊 Sales report API response:", response.data);
 

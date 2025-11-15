@@ -5,7 +5,7 @@ import { ActiveShiftsTable } from "@/components/Dashboard/ActiveShiftsTable";
 import { PendingApprovalsTable } from "@/components/Dashboard/PendingApprovalsTable";
 import { LowStockWidget } from "@/components/Dashboard/LowStockWidget";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface ManagerStats {
@@ -38,9 +38,9 @@ const ManagerDashboard = () => {
       setLoading(true);
       
       const [salesStats, shiftStats, stockStats] = await Promise.all([
-        axios.get("/api/sales/stats"),
-        axios.get("/api/shifts/stats"),
-        axios.get("/api/stock/stats")
+        api.get("/sales/stats"),
+        api.get("/shifts/stats"),
+        api.get("/stock/stats")
       ]);
 
       const totalStock = stockStats.data?.products?.reduce((sum: number, product: any) => 

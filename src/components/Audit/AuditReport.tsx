@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Download, FileText, CheckCircle, XCircle, Clock, User, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -63,7 +63,7 @@ export const AuditReport = () => {
   const fetchAuditReport = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/audit/report", {
+      const response = await api.get("/audit/report", {
         params: {
           date: selectedDate.toISOString().split('T')[0]
         }
@@ -84,7 +84,7 @@ export const AuditReport = () => {
   const handleSignOff = async () => {
     try {
       setSignOffLoading(true);
-      await axios.post("/api/audit/report/sign-off", {
+      await api.post("/audit/report/sign-off", {
         reportDate: selectedDate.toISOString().split('T')[0],
         overallFindings: findings,
         recommendations: recommendations,
