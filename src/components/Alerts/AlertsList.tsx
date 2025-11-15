@@ -1,0 +1,206 @@
+// components/Alerts/AlertsList.tsx
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, AlertTriangle, Info, CheckCircle, Eye, Filter } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import axios from "axios";
+
+interface Notification {
+  _id: string;
+  type: string;
+  description: string;
+  priority: "Low" | "Medium" | "High";
+  status: "Read" | "Unread";
+  createdAt: string;
+}
+
+export const AlertsList = () => {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await axios.get("/api/notifications");
+      setNotifications(response.data);
+    } catch (error: any) {
+      console.error("Failed to fetch notifications:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load notifications",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markAsRead = async (id: string) => {
+    try {
+      await axios.put(`/api/notifications/${id}/read`);
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif._id === id ? { ...notif, status: "Read" as const } : notif
+        )
+      );
+      toast({
+        title: "Success",
+        description: "Notification marked as read",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to mark notification as read",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await axios.put("/api/notifications/read-all");
+      setNotifications(prev => 
+        prev.map(notif => ({ ...notif, status: "Read" as const }))
+      );
+      toast({
+        title: "Success",
+        description: "All notifications marked as read",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to mark all as read",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case "High":
+        return <AlertCircle className="w-4 h-4 text-destructive" />;
+      case "Medium":
+        return <AlertTriangle className="w-4 h-4 text-warning" />;
+      default:
+        return <Info className="w-4 h-4 text-blue-500" />;
+    }
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case "High":
+        return <Badge variant="destructive">High</Badge>;
+      case "Medium":
+        return <Badge variant="secondary" className="bg-orange-100 text-orange-800">Medium</Badge>;
+      default:
+        return <Badge variant="outline">Low</Badge>;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    return status === "Unread" 
+      ? <Badge className="bg-blue-100 text-blue-800">Unread</Badge>
+      : <Badge variant="outline">Read</Badge>;
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">Loading notifications...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>System Notifications</CardTitle>
+        <Button onClick={markAllAsRead} variant="outline" size="sm">
+          <Eye className="w-4 h-4 mr-2" />
+          Mark All as Read
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-3 px-4">Type</th>
+                <th className="text-left py-3 px-4">Description</th>
+                <th className="text-left py-3 px-4">Date & Time</th>
+                <th className="text-left py-3 px-4">Priority</th>
+                <th className="text-left py-3 px-4">Status</th>
+                <th className="text-left py-3 px-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {notifications.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No notifications found
+                  </td>
+                </tr>
+              ) : (
+                notifications.map((notification) => (
+                  <tr key={notification._id} className="border-b">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        {getPriorityIcon(notification.priority)}
+                        <span className="capitalize">{notification.type}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">{notification.description}</td>
+                    <td className="py-3 px-4">
+                      {new Date(notification.createdAt).toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4">
+                      {getPriorityBadge(notification.priority)}
+                    </td>
+                    <td className="py-3 px-4">
+                      {getStatusBadge(notification.status)}
+                    </td>
+                    <td className="py-3 px-4">
+                      {notification.status === "Unread" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => markAsRead(notification._id)}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Mark Read
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Pagination */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-muted-foreground">
+            Showing {notifications.length} entries
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm">
+              Next
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
