@@ -28,7 +28,7 @@ const getNavItems = (role) => {
   const baseItems = [
     { title: "Reports", icon: BarChart3, url: "/reports" },
     { title: "Alerts", icon: AlertCircle, url: "/alerts" },
-    { title: "Tank Management", icon: ChartColumnBig, url: "/admin/tank-management" }
+    // { title: "Tank Management", icon: ChartColumnBig, url: "/admin/tank-management" }
   ];
 
   const moduleItems = [

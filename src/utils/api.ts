@@ -25,7 +25,7 @@ api.interceptors.request.use(
     console.log("🔄 API Call:", {
       method: config.method?.toUpperCase(),
       url: config.baseURL + config.url,
-      proxyTarget: "http://localhost:5001/api" + config.url
+      proxyTarget: "http://localhost:5002/api" + config.url
     });
     
     return config;

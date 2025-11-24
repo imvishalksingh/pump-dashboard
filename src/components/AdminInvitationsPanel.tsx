@@ -129,7 +129,7 @@ const AdminInvitationsPanel = () => {
 
   const deleteInvitation = async (id: string) => {
     try {
-      await api.delete(`/admin/invitations/${id}`);
+      await api.delete(`/api/admin/invitations/${id}`);
       
       toast({
         title: "Invitation deleted",
@@ -215,6 +215,7 @@ const AdminInvitationsPanel = () => {
                   <SelectItem value="auditor">Auditor</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="nozzleman">Nozzleman</SelectItem>
                 </SelectContent>
               </Select>
             </div>
