@@ -38,7 +38,7 @@ export const ActiveShiftsTable = () => {
   const fetchActiveShifts = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/shifts");
+      const response = await api.get("/api/shifts");
       
       // Filter only active shifts and transform data
       const shifts = response.data
@@ -76,7 +76,7 @@ export const ActiveShiftsTable = () => {
       const endReading = currentReading + Math.floor(Math.random() * 1000) + 500;
       const cashCollected = Math.floor(Math.random() * 50000) + 10000;
       
-      await api.put(`/shifts/end/${shiftId}`, {
+      await api.put(`/api/shifts/end/${shiftId}`, {
         endReading,
         cashCollected,
         notes: "Shift ended from dashboard"

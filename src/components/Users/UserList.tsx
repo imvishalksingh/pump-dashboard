@@ -32,7 +32,7 @@ export const UserList = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/admin/users");
+      const response = await api.get("/api/admin/users");
       setUsers(response.data);
     } catch (error: any) {
       console.error("Failed to fetch users:", error);

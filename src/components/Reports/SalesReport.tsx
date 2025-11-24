@@ -41,7 +41,7 @@ export const SalesReport = forwardRef<ReportHandle>((props, ref) => {
       setLoading(true);
       console.log("🔄 Fetching sales report...");
       
-      const response = await api.get("/reports/sales?period=7days");
+      const response = await api.get("/api/reports/sales?period=7days");
       
       console.log("📊 Sales report API response:", response.data);
 

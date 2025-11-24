@@ -1,12 +1,12 @@
+// utils/api.js - UPDATED
 import axios from "axios";
 
 const getBaseURL = () => {
   if (import.meta.env.PROD) {
-    // In production, use your deployed backend URL
-    return import.meta.env.VITE_API_URL || "https://pump-backend-xn6u.onrender.com/api";
+    return import.meta.env.VITE_API_URL || "https://pump-backend-xn6u.onrender.com";
   }
-  // In development, use proxy
-  return "/api";
+  // In development, use empty string - let proxy handle /api prefix
+  return ""; 
 };
 
 const api = axios.create({
@@ -19,7 +19,15 @@ api.interceptors.request.use(
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log("🔐 Token added to:", config.url);
     }
+    
+    console.log("🔄 API Call:", {
+      method: config.method?.toUpperCase(),
+      url: config.baseURL + config.url,
+      proxyTarget: "http://localhost:5001/api" + config.url
+    });
+    
     return config;
   },
   (error) => Promise.reject(error)

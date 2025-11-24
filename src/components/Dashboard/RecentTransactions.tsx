@@ -31,7 +31,7 @@ export const RecentTransactions = () => {
   const fetchRecentTransactions = async () => {
     try {
       // Use the same API endpoint as your Sales Management page
-      const response = await api.get("/sales");
+      const response = await api.get("/api/sales");
       console.log("All sales response:", response.data);
       
       // Get only the latest 5 transactions, sorted by creation date

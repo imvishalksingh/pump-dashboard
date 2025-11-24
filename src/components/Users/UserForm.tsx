@@ -58,13 +58,13 @@ export const UserForm = () => {
 
     try {
       // Use the invitation system to create the user
-      const invitationResponse = await api.post("/admin/invitations", {
+      const invitationResponse = await api.post("/api/admin/invitations", {
         email: formData.email,
         role: formData.role
       });
 
       // Now register the user with the invitation token
-      await api.post("/auth/register", {
+      await api.post("/api/auth/register", {
         name: formData.name,
         email: formData.email,
         password: formData.password,

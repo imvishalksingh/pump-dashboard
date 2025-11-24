@@ -63,7 +63,7 @@ export const AuditReport = () => {
   const fetchAuditReport = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/audit/report", {
+      const response = await api.get("/api/audit/report", {
         params: {
           date: selectedDate.toISOString().split('T')[0]
         }
@@ -84,7 +84,7 @@ export const AuditReport = () => {
   const handleSignOff = async () => {
     try {
       setSignOffLoading(true);
-      await api.post("/audit/report/sign-off", {
+      await api.post("/api/audit/report/sign-off", {
         reportDate: selectedDate.toISOString().split('T')[0],
         overallFindings: findings,
         recommendations: recommendations,

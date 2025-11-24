@@ -45,9 +45,9 @@ const AdminDashboard = () => {
       
       // Use your existing API endpoints
       const [salesStats, shiftStats, stockStats] = await Promise.all([
-        api.get("/sales/stats"),
-        api.get("/shifts/stats"),
-        api.get("/stock/stats") // You might need to create this if not exists
+        api.get("/api/sales/stats"),
+        api.get("/api/shifts/stats"),
+        api.get("/api/stock/stats") // You might need to create this if not exists
       ]);
 
       console.log("📊 Dashboard Data:", {

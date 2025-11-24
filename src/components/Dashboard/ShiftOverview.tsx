@@ -39,29 +39,29 @@ export const ShiftOverview = () => {
   }, []);
 
   const fetchActiveShifts = async () => {
-    try {
-      // Use the same API endpoint as your Shift Attendance page
-      const response = await api.get("/shifts");
-      console.log("All shifts response:", response.data);
-      
-      // Filter for active and pending approval shifts only
-      const activeShifts = response.data.filter((shift: Shift) => 
-        shift.status === "Active" || shift.status === "Pending Approval"
-      );
-      
-      console.log("Active shifts:", activeShifts);
-      setShifts(activeShifts);
-    } catch (error: any) {
-      console.error("Failed to fetch shifts:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load shift data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await api.get("/api/shifts");
+    console.log("All shifts response:", response.data);
+
+    // Only ACTIVE shifts
+    const activeShifts = response.data.shifts.filter(
+      (shift: Shift) => shift.status === "Active"
+    );
+
+    console.log("Active nozzlemen shifts:", activeShifts);
+    setShifts(activeShifts);
+  } catch (error: any) {
+    console.error("Failed to fetch shifts:", error);
+    toast({
+      title: "Error",
+      description: "Failed to load shift data",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const getStatusVariant = (status: string) => {
     switch (status) {

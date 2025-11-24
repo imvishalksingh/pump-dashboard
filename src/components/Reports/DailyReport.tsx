@@ -46,7 +46,7 @@ export const DailyReport = forwardRef<ReportHandle>((props, ref) => {
       console.log("🔄 Fetching daily report...");
       
       const today = new Date().toISOString().split('T')[0];
-      const response = await api.get(`/reports/daily?date=${today}`);
+      const response = await api.get(`/api/reports/daily?date=${today}`);
       
       console.log("📊 Daily report API response:", response.data);
 

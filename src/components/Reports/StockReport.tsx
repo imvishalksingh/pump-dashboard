@@ -47,7 +47,7 @@ export const StockReport = forwardRef<ReportHandle>((props, ref) => {
       setLoading(true);
       console.log("🔄 Fetching stock report...");
       
-      const response = await api.get("/reports/stock");
+      const response = await api.get("/api/reports/stock");
       
       console.log("📊 Stock report API response:", response.data);
 

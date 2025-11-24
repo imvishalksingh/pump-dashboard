@@ -58,8 +58,8 @@ export default function ExpenseCashPage() {
       
       // Fetch both expenses and cash handovers
       const [expensesRes, handoversRes] = await Promise.all([
-        api.get("/expenses"),
-        api.get("/cash-handovers")
+        api.get("/api/expenses"),
+        api.get("/api/cash-handovers")
       ]);
       
       console.log("📊 Expenses response:", expensesRes.data);
@@ -106,7 +106,7 @@ export default function ExpenseCashPage() {
   const handleAddExpense = async (expenseData: any) => {
     try {
       console.log("➕ Adding expense:", expenseData);
-      const response = await api.post("/expenses", expenseData);
+      const response = await api.post("/api/expenses", expenseData);
       toast({
         title: "Success",
         description: "Expense added successfully",
@@ -128,7 +128,7 @@ export default function ExpenseCashPage() {
     
     try {
       console.log("✏️ Editing expense:", editingExpense._id, expenseData);
-      await api.put(`/expenses/${editingExpense._id}`, expenseData);
+      await api.put(`/api/expenses/${editingExpense._id}`, expenseData);
       toast({
         title: "Success",
         description: "Expense updated successfully",
@@ -169,7 +169,7 @@ export default function ExpenseCashPage() {
 
   const handleApproveExpense = async (expenseId: string) => {
     try {
-      await api.put(`/expenses/${expenseId}/approve`);
+      await api.put(`/api/expenses/${expenseId}/approve`);
       toast({
         title: "Success",
         description: "Expense approved successfully",
@@ -186,7 +186,7 @@ export default function ExpenseCashPage() {
 
   const handleRejectExpense = async (expenseId: string) => {
     try {
-      await api.put(`/expenses/${expenseId}/reject`);
+      await api.put(`/api/expenses/${expenseId}/reject`);
       toast({
         title: "Success",
         description: "Expense rejected successfully",
@@ -205,7 +205,7 @@ export default function ExpenseCashPage() {
   const handleVerifyCash = async (handoverId: string) => {
     try {
       console.log("✅ Verifying cash handover:", handoverId);
-      await api.put(`/cash-handovers/${handoverId}/verify`);
+      await api.put(`/api/cash-handovers/${handoverId}/verify`);
       toast({
         title: "Success",
         description: "Cash handover verified and sale created",
@@ -223,7 +223,7 @@ export default function ExpenseCashPage() {
 
   const handleRejectCash = async (handoverId: string, notes: string) => {
     try {
-      await api.put(`/cash-handovers/${handoverId}/reject`, { notes });
+      await api.put(`/api/cash-handovers/${handoverId}/reject`, { notes });
       toast({
         title: "Success",
         description: "Cash handover rejected",

@@ -88,7 +88,7 @@ const Reports = () => {
         description="Generate detailed analytical and summary reports"
         actions={
           <div className="flex gap-2">
-            {/* <PrintReport
+            <PrintReport
               title={getReportTitle()}
               data={data}
               columns={columns}
@@ -100,7 +100,7 @@ const Reports = () => {
               columns={columns}
               summary={summary}
               disabled={data.length === 0}
-            /> */}
+            />
             <Button variant="outline" onClick={handleExportAll}>
               <Download className="w-4 h-4 mr-2" />
               Export All

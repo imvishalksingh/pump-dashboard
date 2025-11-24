@@ -51,7 +51,7 @@ export const AddNozzleModal = ({ open, onOpenChange, onNozzleAdded }: AddNozzleM
 
   const fetchPumps = async () => {
     try {
-      const response = await api.get("/pumps");
+      const response = await api.get("/api/pumps");
       setPumps(response.data);
     } catch (error: any) {
       toast({
@@ -76,7 +76,7 @@ export const AddNozzleModal = ({ open, onOpenChange, onNozzleAdded }: AddNozzleM
 
     setLoading(true);
     try {
-      await api.post("/nozzles", formData);
+      await api.post("/api/nozzles", formData);
       toast({
         title: "Success",
         description: "Nozzle created successfully",

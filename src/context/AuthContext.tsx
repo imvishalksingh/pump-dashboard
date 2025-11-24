@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const checkInvitation = async (token: string, email: string): Promise<{ valid: boolean; data?: any; message?: string }> => {
     try {
       console.log("🔍 Checking invitation:", { token, email });
-      const res = await api.get(`/auth/invitation/${token}?email=${encodeURIComponent(email)}`);
+      const res = await api.get(`/api/auth/invitation/${token}?email=${encodeURIComponent(email)}`);
       console.log("✅ Invitation check response:", res.data);
       return { valid: true, data: res.data };
     } catch (err: any) {
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("🎯 Attempting registration with invitation:", email);
       
-      const res = await api.post(`/auth/register`, { 
+      const res = await api.post(`/api/auth/register`, { 
         email, 
         password, 
         name, 
@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log("🔐 Attempting login:", email);
-      const res = await api.post(`/auth/login`, { email, password });
+      const res = await api.post(`/api/auth/login`, { email, password });
       const userData = res.data;
       console.log("✅ Login successful:", userData.email);
 
@@ -115,7 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ---------- LOGOUT ----------
   const logout = async () => {
     try {
-      await api.post(`/auth/logout`);
+      await api.post(`/api/auth/logout`);
     } catch (error) {
       console.error("Logout error:", error);
     } finally {

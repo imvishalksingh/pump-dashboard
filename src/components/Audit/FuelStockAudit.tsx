@@ -1,4 +1,4 @@
-// components/Audit/FuelStockAudit.tsx - UPDATED WITH REAL DATA SYNC
+// components/Audit/FuelStockAudit.tsx - FIXED WITH NULL CHECKS
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,18 @@ interface FuelStockAuditProps {
   onUpdate: () => void;
 }
 
+// Safe number formatter with fallback
+const formatNumber = (value: number | undefined | null, fallback: string = "N/A"): string => {
+  if (value === undefined || value === null) return fallback;
+  return value.toLocaleString();
+};
+
+// Safe percentage calculator
+const calculatePercentage = (part: number | undefined, total: number | undefined): number => {
+  if (!part || !total || total === 0) return 0;
+  return Math.round((part / total) * 100);
+};
+
 export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
   const [auditData, setAuditData] = useState<FuelStockAuditData>({
     calculationDiscrepancies: [],
@@ -65,10 +77,37 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
       setLoading(true);
       console.log("🔄 Fetching stock audit data...");
       
-      const response = await api.get("/audit/stock/discrepancies");
+      const response = await api.get("/api/audit/stock/discrepancies");
       console.log("📊 Stock audit response:", response.data);
       
-      setAuditData(response.data);
+      // Validate and sanitize data
+      const validatedData = {
+        calculationDiscrepancies: (response.data.calculationDiscrepancies || []).map((item: any) => ({
+          ...item,
+          expectedClosing: item.expectedClosing || 0,
+          actualClosing: item.actualClosing || 0,
+          difference: item.difference || 0,
+          stockEntry: {
+            openingStock: item.stockEntry?.openingStock || 0,
+            purchases: item.stockEntry?.purchases || 0,
+            sales: item.stockEntry?.sales || 0,
+            closingStock: item.stockEntry?.closingStock || 0,
+            capacity: item.stockEntry?.capacity || 0,
+            currentLevel: item.stockEntry?.currentLevel || 0,
+          }
+        })),
+        pendingAdjustments: (response.data.pendingAdjustments || []).map((item: any) => ({
+          ...item,
+          quantity: item.quantity || 0,
+          previousStock: item.previousStock || 0,
+          newStock: item.newStock || 0,
+          adjustedBy: {
+            name: item.adjustedBy?.name || "Unknown User"
+          }
+        }))
+      };
+      
+      setAuditData(validatedData);
     } catch (error: any) {
       console.error("Failed to fetch stock audit data:", error);
       toast({
@@ -81,37 +120,44 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
     }
   };
 
-  const handleApproveAdjustment = async (adjustmentId: string, approved: boolean, notes?: string) => {
-    try {
-      setProcessingId(adjustmentId);
-      console.log(`🔄 ${approved ? 'Approving' : 'Rejecting'} stock adjustment:`, adjustmentId);
-      
-      const response = await api.post(`/audit/stock/adjustments/${adjustmentId}/approve`, {
-        approved,
-        notes: notes || (approved ? "Stock adjustment approved" : "Stock adjustment rejected")
-      });
-      
-      console.log("✅ Stock adjustment response:", response.data);
-      
-      toast({
-        title: approved ? "Adjustment Approved" : "Adjustment Rejected",
-        description: `Stock adjustment has been ${approved ? "approved" : "rejected"}`,
-      });
-      
-      fetchStockAuditData();
-      onUpdate();
-    } catch (error: any) {
-      console.error("Failed to process adjustment:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to process adjustment",
-        variant: "destructive",
-      });
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
+ // In FuelStockAudit.tsx - update the handleApproveAdjustment function
+const handleApproveAdjustment = async (adjustmentId: string, approved: boolean, notes?: string) => {
+  try {
+    setProcessingId(adjustmentId);
+    console.log(`🔄 ${approved ? 'Approving' : 'Rejecting'} stock adjustment:`, adjustmentId);
+    
+    const response = await api.post(`/api/audit/stock/adjustments/${adjustmentId}/approve`, {
+      approved,
+      notes: notes || (approved ? "Stock adjustment approved" : "Stock adjustment rejected")
+    });
+    
+    console.log("✅ Stock adjustment response:", response.data);
+    
+    toast({
+      title: approved ? "Adjustment Approved" : "Adjustment Rejected",
+      description: response.data.message,
+    });
+    
+    fetchStockAuditData();
+    onUpdate();
+  } catch (error: any) {
+    console.error("Failed to process adjustment:", error);
+    
+    // More specific error handling
+    const errorMessage = error.response?.data?.message || "Failed to process adjustment";
+    
+    toast({
+      title: "Error",
+      description: errorMessage,
+      variant: "destructive",
+    });
+    
+    // Refresh data to get current status
+    fetchStockAuditData();
+  } finally {
+    setProcessingId(null);
+  }
+};
   if (loading) {
     return (
       <Card className="p-6">
@@ -163,7 +209,7 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-red-600">
-                      {discrepancy.difference > 0 ? "+" : ""}{discrepancy.difference.toLocaleString()} L
+                      {discrepancy.difference > 0 ? "+" : ""}{formatNumber(discrepancy.difference)} L
                     </p>
                     <p className="text-sm text-muted-foreground">Discrepancy</p>
                   </div>
@@ -173,19 +219,19 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
                   <div className="text-center p-3 bg-white rounded-lg">
                     <p className="text-muted-foreground">Expected Closing</p>
                     <p className="font-semibold text-foreground">
-                      {discrepancy.expectedClosing.toLocaleString()} L
+                      {formatNumber(discrepancy.expectedClosing)} L
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {Math.round((discrepancy.expectedClosing / discrepancy.stockEntry.capacity) * 100)}% capacity
+                      {calculatePercentage(discrepancy.expectedClosing, discrepancy.stockEntry.capacity)}% capacity
                     </p>
                   </div>
                   <div className="text-center p-3 bg-white rounded-lg">
                     <p className="text-muted-foreground">Actual Closing</p>
                     <p className="font-semibold text-foreground">
-                      {discrepancy.actualClosing.toLocaleString()} L
+                      {formatNumber(discrepancy.actualClosing)} L
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {discrepancy.stockEntry.currentLevel}% capacity
+                      {formatNumber(discrepancy.stockEntry.currentLevel)}% capacity
                     </p>
                   </div>
                   <div className="text-center p-3 bg-white rounded-lg">
@@ -193,7 +239,7 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
                     <p className={`font-semibold ${
                       Math.abs(discrepancy.difference) > 100 ? "text-red-600" : "text-orange-600"
                     }`}>
-                      {Math.abs(discrepancy.difference).toLocaleString()} L
+                      {formatNumber(Math.abs(discrepancy.difference))} L
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {Math.abs(discrepancy.difference) > 100 ? "Major issue" : "Minor variance"}
@@ -203,13 +249,13 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-muted-foreground">
                   <div>
-                    <span className="font-medium">Opening:</span> {discrepancy.stockEntry.openingStock.toLocaleString()}L
+                    <span className="font-medium">Opening:</span> {formatNumber(discrepancy.stockEntry.openingStock)}L
                   </div>
                   <div>
-                    <span className="font-medium">Purchases:</span> +{discrepancy.stockEntry.purchases.toLocaleString()}L
+                    <span className="font-medium">Purchases:</span> +{formatNumber(discrepancy.stockEntry.purchases)}L
                   </div>
                   <div>
-                    <span className="font-medium">Sales:</span> -{discrepancy.stockEntry.sales.toLocaleString()}L
+                    <span className="font-medium">Sales:</span> -{formatNumber(discrepancy.stockEntry.sales)}L
                   </div>
                 </div>
               </div>
@@ -277,7 +323,7 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
                     <p className="text-muted-foreground">Previous Stock</p>
                     <p className="font-semibold text-foreground">
-                      {adjustment.previousStock.toLocaleString()} L
+                      {formatNumber(adjustment.previousStock)} L
                     </p>
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
@@ -285,13 +331,13 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
                     <p className={`font-semibold ${
                       adjustment.adjustmentType === "addition" ? "text-green-600" : "text-red-600"
                     }`}>
-                      {adjustment.adjustmentType === "addition" ? "+" : "-"}{adjustment.quantity.toLocaleString()} L
+                      {adjustment.adjustmentType === "addition" ? "+" : "-"}{formatNumber(adjustment.quantity)} L
                     </p>
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
                     <p className="text-muted-foreground">New Stock</p>
                     <p className="font-semibold text-foreground">
-                      {adjustment.newStock.toLocaleString()} L
+                      {formatNumber(adjustment.newStock)} L
                     </p>
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
@@ -304,7 +350,7 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
 
                 <div className="flex items-center justify-between pt-3 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Stock change: {adjustment.previousStock.toLocaleString()}L → {adjustment.newStock.toLocaleString()}L
+                    Stock change: {formatNumber(adjustment.previousStock)}L → {formatNumber(adjustment.newStock)}L
                   </div>
                   <div className="flex items-center gap-2">
                     <Button

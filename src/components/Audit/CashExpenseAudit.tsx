@@ -53,7 +53,7 @@ export const CashExpenseAudit = ({ onUpdate }: CashExpenseAuditProps) => {
   const fetchPendingEntries = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/audit/cash/pending");
+      const response = await api.get("/api/audit/cash/pending");
       console.log("💰 Cash entries response:", response.data);
       setEntries(response.data);
     } catch (error: any) {
@@ -73,7 +73,7 @@ export const CashExpenseAudit = ({ onUpdate }: CashExpenseAuditProps) => {
       setProcessingId(entryId);
       console.log(`🔄 ${approved ? 'Verifying' : 'Rejecting'} cash entry:`, entryId);
       
-      const response = await api.post(`/audit/cash/${entryId}/verify`, {
+      const response = await api.post(`/api/audit/cash/${entryId}/verify`, {
         approved,
         notes
       });

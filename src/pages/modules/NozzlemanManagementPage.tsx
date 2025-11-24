@@ -42,7 +42,7 @@ export default function NozzlemanManagementPage() {
 
   const fetchNozzlemen = async () => {
     try {
-      const response = await api.get("/nozzlemen");
+      const response = await api.get("/api/nozzlemen");
       setNozzlemen(response.data);
     } catch (error: any) {
       console.error("Failed to fetch nozzlemen:", error);
@@ -56,7 +56,7 @@ export default function NozzlemanManagementPage() {
 
   const handleAddNozzleman = async (data: any) => {
     try {
-      const response = await api.post("/nozzlemen", data);
+      const response = await api.post("/api/nozzlemen", data);
       setNozzlemen(prev => [...prev, response.data]);
       setShowNozzlemanModal(false);
       toast({
@@ -81,7 +81,7 @@ export default function NozzlemanManagementPage() {
     if (!editingNozzleman) return;
 
     try {
-      const response = await api.put(`/nozzlemen/${editingNozzleman._id}`, data);
+      const response = await api.put(`/api/nozzlemen/${editingNozzleman._id}`, data);
       setNozzlemen(prev => prev.map(n => 
         n._id === editingNozzleman._id ? response.data : n
       ));
@@ -102,7 +102,7 @@ export default function NozzlemanManagementPage() {
 
   const handleAssignNozzle = async (data: any) => {
     try {
-      await api.post("/assignments", data);
+      await api.post("/api/assignments", data);
       setShowAssignModal(false);
       setRefreshTrigger(prev => prev + 1);
       toast({
@@ -187,7 +187,7 @@ export default function NozzlemanManagementPage() {
           <div className="flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="nozzlemen">Nozzlemen</TabsTrigger>
-              <TabsTrigger value="assignments">Assignments</TabsTrigger>
+              {/* <TabsTrigger value="assignments">Assignments</TabsTrigger> */}
             </TabsList>
             <div className="flex gap-2">
               <Button onClick={() => setShowAssignModal(true)}>

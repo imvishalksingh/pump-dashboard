@@ -39,7 +39,7 @@ const AdminInvitationsPanel = () => {
     try {
       setIsFetching(true);
       console.log("🔍 Fetching invitations...");
-      const response = await api.get("/admin/invitations");
+      const response = await api.get("/api/admin/invitations");
       console.log("✅ API Response:", response.data);
       
       // FIX: Handle the response format correctly
@@ -74,7 +74,7 @@ const AdminInvitationsPanel = () => {
     setIsLoading(true);
     try {
       console.log("📧 Creating invitation for:", email);
-      const response = await api.post("/admin/invitations", { email, role });
+      const response = await api.post("/api/admin/invitations", { email, role });
       console.log("✅ Invitation created:", response.data);
       
       toast({
@@ -105,7 +105,7 @@ const AdminInvitationsPanel = () => {
 
   const resendInvitation = async (id: string) => {
     try {
-      const response = await api.post(`/admin/invitations/${id}/resend`);
+      const response = await api.post(`/api/admin/invitations/${id}/resend`);
       
       toast({
         title: "Invitation resent!",

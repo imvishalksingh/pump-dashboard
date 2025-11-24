@@ -15,7 +15,7 @@ interface Assignment {
   };
   nozzle: {
     _id: string;
-    number: string;
+    number: string | null; // ✅ Allow null
   };
   pump: {
     _id: string;
@@ -44,7 +44,7 @@ export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTab
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/assignments");
+      const response = await api.get("/api/assignments");
       setAssignments(response.data);
     } catch (error: any) {
       console.error("Failed to fetch assignments:", error);
@@ -88,6 +88,11 @@ export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTab
     }
   };
 
+  // ✅ Safe nozzle number display
+  const getNozzleNumber = (nozzle: { number: string | null }) => {
+    return nozzle.number || "N/A"; // Handle null/undefined cases
+  };
+
   if (loading) {
     return (
       <div className="rounded-lg border bg-card p-8 text-center">
@@ -124,7 +129,9 @@ export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTab
               <TableRow key={assignment._id}>
                 <TableCell className="font-medium">{assignment.nozzleman.name}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{assignment.nozzle.number}</Badge>
+                  <Badge variant="outline">
+                    {getNozzleNumber(assignment.nozzle)} {/* ✅ Safe access */}
+                  </Badge>
                 </TableCell>
                 <TableCell>{assignment.pump.name}</TableCell>
                 <TableCell>

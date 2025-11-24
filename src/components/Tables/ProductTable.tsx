@@ -2,7 +2,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2 } from "lucide-react";
-import { ProductTableItem } from "@/types/Product";
+import { ProductTableItem } from "@/types/product";
 
 interface ProductTableProps {
   products: ProductTableItem[];

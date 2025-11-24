@@ -23,7 +23,6 @@ import RegisterPage from "./pages/RegisterPage";
 import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
 import { PumpNozzleManagementPage } from "./pages/modules/PumpNozzleManagementPage";
-import { ShiftAttendancePage } from "./pages/modules/ShiftAttendancePage";
 import { FuelStockPage } from "./pages/modules/FuelStockPage";
 import { SalesManagementPage } from "./pages/modules/SalesManagementPage";
 import CreditCustomerPage from "./pages/modules/CreditCustomerPage";
@@ -97,7 +96,7 @@ const AppContent = () => {
                           </ErrorBoundar>
                         </PrivateRoute>
                       } />
-
+                      
                       {/* Core Application Routes */}
                       <Route path="/sales" element={<Sales />} />
                       <Route path="/stock" element={<Stock />} />
@@ -107,7 +106,6 @@ const AppContent = () => {
 
                       {/* Module Routes */}
                       <Route path="/pumps" element={<PumpNozzleManagementPage />} />
-                      <Route path="/shifts" element={<ShiftAttendancePage />} />
                       <Route path="/fuel-stock" element={<FuelStockPage />} />
                       <Route path="/sales-management" element={<SalesManagementPage />} />
                       <Route path="/nozzleman-management" element={<NozzlemanManagementPage />} />

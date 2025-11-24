@@ -38,9 +38,9 @@ const ManagerDashboard = () => {
       setLoading(true);
       
       const [salesStats, shiftStats, stockStats] = await Promise.all([
-        api.get("/sales/stats"),
-        api.get("/shifts/stats"),
-        api.get("/stock/stats")
+        api.get("/api/sales/stats"),
+        api.get("/api/shifts/stats"),
+        api.get("/api/stock/stats")
       ]);
 
       const totalStock = stockStats.data?.products?.reduce((sum: number, product: any) => 

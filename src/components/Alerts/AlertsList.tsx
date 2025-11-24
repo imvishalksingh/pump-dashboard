@@ -1,92 +1,19 @@
 // components/Alerts/AlertsList.tsx
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, AlertTriangle, Info, CheckCircle, Eye, Filter } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import api from "@/utils/api";
-
-interface Notification {
-  _id: string;
-  type: string;
-  description: string;
-  priority: "Low" | "Medium" | "High";
-  status: "Read" | "Unread";
-  createdAt: string;
-}
+import { AlertCircle, AlertTriangle, Info, Eye } from "lucide-react";
+import { useNotifications } from "@/hooks/useNotifications";
 
 export const AlertsList = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await api.get("/notifications");
-      setNotifications(response.data);
-    } catch (error: any) {
-      console.error("Failed to fetch notifications:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load notifications",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const markAsRead = async (id: string) => {
-    try {
-      await api.put(`/notifications/${id}/read`);
-      setNotifications(prev => 
-        prev.map(notif => 
-          notif._id === id ? { ...notif, status: "Read" as const } : notif
-        )
-      );
-      toast({
-        title: "Success",
-        description: "Notification marked as read",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to mark notification as read",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      await api.put("/notifications/read-all");
-      setNotifications(prev => 
-        prev.map(notif => ({ ...notif, status: "Read" as const }))
-      );
-      toast({
-        title: "Success",
-        description: "All notifications marked as read",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to mark all as read",
-        variant: "destructive",
-      });
-    }
-  };
+  const { notifications, loading, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
       case "High":
         return <AlertCircle className="w-4 h-4 text-destructive" />;
       case "Medium":
-        return <AlertTriangle className="w-4 h-4 text-warning" />;
+        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
       default:
         return <Info className="w-4 h-4 text-blue-500" />;
     }
@@ -97,7 +24,7 @@ export const AlertsList = () => {
       case "High":
         return <Badge variant="destructive">High</Badge>;
       case "Medium":
-        return <Badge variant="secondary" className="bg-orange-100 text-orange-800">Medium</Badge>;
+        return <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100">Medium</Badge>;
       default:
         return <Badge variant="outline">Low</Badge>;
     }
@@ -105,7 +32,7 @@ export const AlertsList = () => {
 
   const getStatusBadge = (status: string) => {
     return status === "Unread" 
-      ? <Badge className="bg-blue-100 text-blue-800">Unread</Badge>
+      ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Unread</Badge>
       : <Badge variant="outline">Read</Badge>;
   };
 
@@ -113,7 +40,7 @@ export const AlertsList = () => {
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center">Loading notifications...</div>
+          <div className="text-center text-muted-foreground">Loading notifications...</div>
         </CardContent>
       </Card>
     );
@@ -122,11 +49,18 @@ export const AlertsList = () => {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>System Notifications</CardTitle>
-        <Button onClick={markAllAsRead} variant="outline" size="sm">
-          <Eye className="w-4 h-4 mr-2" />
-          Mark All as Read
-        </Button>
+        <div>
+          <CardTitle>System Notifications</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+          </p>
+        </div>
+        {unreadCount > 0 && (
+          <Button onClick={markAllAsRead} variant="outline" size="sm">
+            <Eye className="w-4 h-4 mr-2" />
+            Mark All as Read
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -150,7 +84,7 @@ export const AlertsList = () => {
                 </tr>
               ) : (
                 notifications.map((notification) => (
-                  <tr key={notification._id} className="border-b">
+                  <tr key={notification._id} className="border-b hover:bg-muted/50 transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
                         {getPriorityIcon(notification.priority)}
@@ -173,6 +107,7 @@ export const AlertsList = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => markAsRead(notification._id)}
+                          className="h-8 px-2"
                         >
                           <Eye className="w-4 h-4 mr-1" />
                           Mark Read
@@ -189,7 +124,7 @@ export const AlertsList = () => {
         {/* Pagination */}
         <div className="flex items-center justify-between mt-4">
           <div className="text-sm text-muted-foreground">
-            Showing {notifications.length} entries
+            Showing {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled>

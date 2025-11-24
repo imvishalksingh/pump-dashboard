@@ -38,7 +38,7 @@ export const PumpTable = ({ onEdit, refresh, onRefresh }: PumpTableProps) => {
   const fetchPumps = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/pumps");
+      const response = await api.get("/api/pumps");
       setPumps(response.data);
     } catch (error: any) {
       console.error("Failed to fetch pumps:", error);

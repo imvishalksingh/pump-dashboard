@@ -80,7 +80,7 @@ export const EditPumpModal = ({ open, onOpenChange, pump, onPumpUpdated }: EditP
     setLoading(true);
 
     try {
-      await api.put(`/pumps/${pump._id}`, {
+      await api.put(`/api/pumps/${pump._id}`, {
         name: formData.name,
         location: formData.location,
         fuelType: formData.fuelType,

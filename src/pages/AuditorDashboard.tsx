@@ -39,7 +39,7 @@ const AuditorDashboard = () => {
   const fetchAuditorStats = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/audit/stats");
+      const response = await api.get("/api/audit/stats");
       setStats(response.data);
       console.log("✅ Auditor stats loaded:", response.data);
     } catch (error: any) {

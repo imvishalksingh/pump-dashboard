@@ -73,7 +73,7 @@ export const NozzleAssignModal = ({
 
   const fetchNozzles = async () => {
     try {
-      const response = await api.get("/nozzles");
+      const response = await api.get("/api/nozzles");
       setNozzles(response.data);
     } catch (error: any) {
       toast({
@@ -86,7 +86,7 @@ export const NozzleAssignModal = ({
 
   const fetchPumps = async () => {
     try {
-      const response = await api.get("/pumps");
+      const response = await api.get("/api/pumps");
       setPumps(response.data);
     } catch (error: any) {
       toast({

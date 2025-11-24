@@ -2,7 +2,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle } from "lucide-react";
-import { PriceHistory } from "@/types/Product";
+import { PriceHistory } from "@/types/product";
 
 interface PriceHistoryTableProps {
   history: PriceHistory[];

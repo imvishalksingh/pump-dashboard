@@ -84,7 +84,7 @@ export const SettingsForm = () => {
   const loadSettings = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get("/settings");
+      const response = await api.get("/api/settings");
       
       if (response.data) {
         setSettings(response.data);
@@ -106,7 +106,7 @@ export const SettingsForm = () => {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const response = await api.put("/settings", settings);
+      const response = await api.put("/api/settings", settings);
 
       if (response.data) {
         setSettings(response.data.settings);
@@ -135,7 +135,7 @@ export const SettingsForm = () => {
         return;
       }
 
-      const response = await api.post("/settings/reset");
+      const response = await api.post("/api/settings/reset");
 
       if (response.data) {
         setSettings(response.data.settings);

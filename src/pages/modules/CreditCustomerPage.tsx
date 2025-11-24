@@ -58,8 +58,8 @@ export default function CreditCustomerPage() {
     try {
       setLoading(true);
       const [customersRes, ledgerRes] = await Promise.all([
-        api.get("/customers"),
-        api.get("/customers/ledger/all")
+        api.get("/api/customers"),
+        api.get("/api/customers/ledger/all")
       ]);
       setCustomers(customersRes.data);
       setLedgerEntries(ledgerRes.data);
@@ -81,7 +81,7 @@ export default function CreditCustomerPage() {
 
   const handleAddCustomer = async (customerData: any) => {
     try {
-      await api.post("/customers", customerData);
+      await api.post("/api/customers", customerData);
       toast({
         title: "Success",
         description: "Customer added successfully",
@@ -99,7 +99,7 @@ export default function CreditCustomerPage() {
 
   const handleEditCustomer = async (customerId: string, customerData: any) => {
     try {
-      await api.put(`/customers/${customerId}`, customerData);
+      await api.put(`/api/customers/${customerId}`, customerData);
       toast({
         title: "Success",
         description: "Customer updated successfully",
@@ -167,7 +167,7 @@ export default function CreditCustomerPage() {
     console.log("🔵 Sending to API - URL:", `/api/customers/${customerId}/payment`);
     console.log("🔵 Payload:", cleanPayload);
 
-    const response = await api.post(`/customers/${customerId}/payment`, cleanPayload);
+    const response = await api.post(`/api/customers/${customerId}/payment`, cleanPayload);
     console.log("🟢 API Response:", response.data);
 
     toast({

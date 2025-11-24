@@ -58,7 +58,7 @@ export const EditNozzleModal = ({ open, onOpenChange, nozzle, onNozzleUpdated }:
 
     setLoading(true);
     try {
-      await api.put(`/nozzles/${nozzle._id}`, formData);
+      await api.put(`/api/nozzles/${nozzle._id}`, formData);
       toast({
         title: "Success",
         description: "Nozzle updated successfully",

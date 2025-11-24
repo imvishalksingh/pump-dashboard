@@ -50,7 +50,7 @@ export const PendingShiftsAudit = ({ onUpdate }: PendingShiftsAuditProps) => {
   const fetchPendingShifts = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/audit/shifts/pending");
+      const response = await api.get("/api/audit/shifts/pending");
       console.log("📋 Pending shifts response:", response.data);
       setShifts(response.data);
     } catch (error: any) {
@@ -70,7 +70,7 @@ export const PendingShiftsAudit = ({ onUpdate }: PendingShiftsAuditProps) => {
       setProcessingId(shiftId);
       console.log("✅ Approving shift:", shiftId);
       
-      const response = await api.post(`/audit/shifts/${shiftId}/approve`, {
+      const response = await api.post(`/api/audit/shifts/${shiftId}/approve`, {
         approved: true,
         notes: notes || "Auditor approved - discrepancy accepted"
       });
@@ -100,7 +100,7 @@ export const PendingShiftsAudit = ({ onUpdate }: PendingShiftsAuditProps) => {
   try {
     setProcessingId(shiftId);
     
-    const response = await api.post(`/audit/shifts/${shiftId}/approve`, {
+    const response = await api.post(`/api/audit/shifts/${shiftId}/approve`, {
       approved: false,
       notes: reason
     });

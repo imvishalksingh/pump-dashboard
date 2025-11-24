@@ -38,7 +38,7 @@ export const SalesChart = () => {
   const fetchSalesData = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/sales");
+      const response = await api.get("/api/sales");
       const sales: Sale[] = response.data;
       
       // Process sales data for the last 7 days

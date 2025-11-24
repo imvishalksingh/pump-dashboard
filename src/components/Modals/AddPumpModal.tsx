@@ -52,7 +52,7 @@ export const AddPumpModal = ({ open, onOpenChange, onPumpAdded }: AddPumpModalPr
     setLoading(true);
 
     try {
-      await api.post("/pumps", {
+      await api.post("/api/pumps", {
         name: formData.name,
         location: formData.location,
         fuelType: formData.fuelType,

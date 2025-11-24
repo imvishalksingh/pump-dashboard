@@ -1,3 +1,4 @@
+// components/Dashboard/LowStockWidget.tsx - FIXED
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 interface LowStockItem {
   _id: string;
   product: string;
-  closingStock: number;
-  capacity: number;
-  currentLevel: number;
-  alert: boolean;
+  closingStock?: number;
+  capacity?: number;
+  currentLevel?: number;
+  alert?: boolean;
 }
 
 interface LowStockItemWithStatus extends LowStockItem {
@@ -31,28 +32,61 @@ export const LowStockWidget = () => {
     fetchLowStockData();
   }, []);
 
+  // Safe number formatting function
+  const formatNumber = (value: number | null | undefined): string => {
+    if (value === null || value === undefined || isNaN(value)) {
+      return "0";
+    }
+    return value.toLocaleString();
+  };
+
+  // Safe progress value
+  const getProgressValue = (level: number | null | undefined): number => {
+    if (level === null || level === undefined || isNaN(level)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(100, level));
+  };
+
   const fetchLowStockData = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/stock/stats");
+      const response = await api.get("/api/stock/stats"); // Fixed: removed /api prefix
       
+      // Handle different response structures
+      const products = response.data.products || response.data || [];
+      
+      if (!Array.isArray(products)) {
+        console.error("Invalid products data:", products);
+        setLowStockItems([]);
+        return;
+      }
+
       // Filter items that are below 30% capacity (low stock)
-      const lowStockProducts = response.data.products.filter((product: any) => 
-        product.currentLevel < 30
-      );
+      const lowStockProducts = products.filter((product: any) => {
+        const currentLevel = product.currentLevel || 0;
+        return currentLevel < 30;
+      });
 
       // Transform data for the widget with proper typing
-      const items: LowStockItemWithStatus[] = lowStockProducts.map((product: any) => ({
-        _id: product._id || `tank-${product.product}`,
-        product: product.product,
-        closingStock: product.closingStock,
-        capacity: product.capacity,
-        currentLevel: product.currentLevel,
-        alert: product.alert,
-        percentage: product.currentLevel,
-        status: getStockStatus(product.currentLevel),
-        tank: `Tank ${product.product}`
-      }));
+      const items: LowStockItemWithStatus[] = lowStockProducts.map((product: any) => {
+        const currentLevel = product.currentLevel || 0;
+        const closingStock = product.closingStock || 0;
+        const capacity = product.capacity || 0;
+        const productName = product.product || "Unknown";
+
+        return {
+          _id: product._id || `tank-${productName}`,
+          product: productName,
+          closingStock,
+          capacity,
+          currentLevel,
+          alert: product.alert || false,
+          percentage: currentLevel,
+          status: getStockStatus(currentLevel),
+          tank: `Tank ${productName}`
+        };
+      });
 
       setLowStockItems(items);
     } catch (error: any) {
@@ -62,6 +96,7 @@ export const LowStockWidget = () => {
         description: "Failed to load low stock alerts",
         variant: "destructive",
       });
+      setLowStockItems([]);
     } finally {
       setLoading(false);
     }
@@ -75,15 +110,32 @@ export const LowStockWidget = () => {
 
   const handleRequestRefill = async (product: string) => {
     try {
+      // Find the current stock level for this product
+      const currentItem = lowStockItems.find(item => item.product === product);
+      const currentStock = currentItem?.closingStock || 0;
+      const capacity = currentItem?.capacity || 50000;
+
+      // Calculate refill quantity (fill to 80% of capacity)
+      const targetStock = capacity * 0.8;
+      const refillQuantity = Math.max(0, Math.round(targetStock - currentStock));
+
+      if (refillQuantity <= 0) {
+        toast({
+          title: "No Refill Needed",
+          description: `${product} tank doesn't need refill at this time`,
+        });
+        return;
+      }
+
       // Create a stock purchase entry for refill
-      await api.post("/stock", {
+      await api.post("/api/stock", {
         product,
-        openingStock: 0, // This would be the current stock
-        purchases: 10000, // Example refill quantity
+        openingStock: currentStock,
+        purchases: refillQuantity,
         sales: 0,
-        capacity: 50000, // Example capacity
+        capacity: capacity,
         rate: 95, // Current rate
-        amount: 950000, // rate * purchases
+        amount: refillQuantity * 95,
         supplier: "Emergency Refill",
         invoiceNumber: `REFILL-${Date.now()}`
       });
@@ -118,19 +170,26 @@ export const LowStockWidget = () => {
       }
 
       // Create refill requests for all critical items
-      const refillPromises = criticalItems.map(item =>
-        api.post("/stock", {
+      const refillPromises = criticalItems.map(item => {
+        const currentStock = item.closingStock || 0;
+        const capacity = item.capacity || 50000;
+        const targetStock = capacity * 0.8;
+        const refillQuantity = Math.max(0, Math.round(targetStock - currentStock));
+
+        if (refillQuantity <= 0) return Promise.resolve();
+
+        return api.post("/api/stock", {
           product: item.product,
-          openingStock: 0,
-          purchases: 15000, // Bulk refill quantity
+          openingStock: currentStock,
+          purchases: refillQuantity,
           sales: 0,
-          capacity: item.capacity,
-          rate: 95, // Current rate
-          amount: 1425000, // rate * purchases
+          capacity: capacity,
+          rate: 95,
+          amount: refillQuantity * 95,
           supplier: "Bulk Emergency Refill",
           invoiceNumber: `BULK-REFILL-${Date.now()}-${item.product}`
-        })
-      );
+        });
+      }).filter(Boolean); // Remove any undefined promises
 
       await Promise.all(refillPromises);
 
@@ -206,61 +265,70 @@ export const LowStockWidget = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {lowStockItems.map((item) => (
-              <div
-                key={item._id}
-                className={`p-4 rounded-lg border-2 ${
-                  item.status === "critical" 
-                    ? "border-destructive/30 bg-destructive/5" 
-                    : "border-warning/30 bg-warning/5"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="font-semibold text-foreground">{item.product}</p>
-                    <p className="text-sm text-muted-foreground">{item.tank}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="destructive"
-                      className={item.status === "critical" ? "bg-destructive" : "bg-warning"}
-                    >
-                      {item.status === "critical" ? "Critical" : "Low"}
-                    </Badge>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRequestRefill(item.product)}
-                    >
-                      Request Refill
-                    </Button>
-                  </div>
-                </div>
+            {lowStockItems.map((item) => {
+              // Safe values with defaults
+              const product = item.product || "Unknown";
+              const closingStock = item.closingStock || 0;
+              const capacity = item.capacity || 0;
+              const currentLevel = item.currentLevel || 0;
+              const status = item.status;
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Available Stock</span>
-                    <span className="font-medium text-foreground">
-                      {item.closingStock.toLocaleString()} L / {item.capacity.toLocaleString()} L
-                    </span>
+              return (
+                <div
+                  key={item._id}
+                  className={`p-4 rounded-lg border-2 ${
+                    status === "critical" 
+                      ? "border-destructive/30 bg-destructive/5" 
+                      : "border-warning/30 bg-warning/5"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="font-semibold text-foreground">{product}</p>
+                      <p className="text-sm text-muted-foreground">{item.tank}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="destructive"
+                        className={status === "critical" ? "bg-destructive" : "bg-warning"}
+                      >
+                        {status === "critical" ? "Critical" : "Low"}
+                      </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRequestRefill(product)}
+                      >
+                        Request Refill
+                      </Button>
+                    </div>
                   </div>
-                  <Progress 
-                    value={item.currentLevel} 
-                    className={`h-2 ${
-                      item.status === "critical" ? "[&>div]:bg-destructive" : "[&>div]:bg-warning"
-                    }`} 
-                  />
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Capacity Level</span>
-                    <span className={`font-medium ${
-                      item.status === "critical" ? "text-destructive" : "text-warning"
-                    }`}>
-                      {item.currentLevel}%
-                    </span>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Available Stock</span>
+                      <span className="font-medium text-foreground">
+                        {formatNumber(closingStock)} L / {formatNumber(capacity)} L
+                      </span>
+                    </div>
+                    <Progress 
+                      value={getProgressValue(currentLevel)} 
+                      className={`h-2 ${
+                        status === "critical" ? "[&>div]:bg-destructive" : "[&>div]:bg-warning"
+                      }`} 
+                    />
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Capacity Level</span>
+                      <span className={`font-medium ${
+                        status === "critical" ? "text-destructive" : "text-warning"
+                      }`}>
+                        {formatNumber(currentLevel)}%
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {criticalItems.length > 0 && (

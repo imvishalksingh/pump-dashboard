@@ -40,7 +40,7 @@ export const NozzleTable = ({ onEdit, refresh = 0, onRefresh }: NozzleTableProps
   const fetchNozzles = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/nozzles");
+      const response = await api.get("/api/nozzles");
       setNozzles(response.data);
     } catch (error: any) {
       console.error("Failed to fetch nozzles:", error);
