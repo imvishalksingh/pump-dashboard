@@ -121,6 +121,7 @@ export const FuelStockAudit = ({ onUpdate }: FuelStockAuditProps) => {
   };
 
  // In FuelStockAudit.tsx - update the handleApproveAdjustment function
+// In FuelStockAudit.tsx - Update the handleApproveAdjustment function
 const handleApproveAdjustment = async (adjustmentId: string, approved: boolean, notes?: string) => {
   try {
     setProcessingId(adjustmentId);
@@ -138,12 +139,20 @@ const handleApproveAdjustment = async (adjustmentId: string, approved: boolean, 
       description: response.data.message,
     });
     
+    // Refresh both audit data and tank data
     fetchStockAuditData();
-    onUpdate();
+    onUpdate(); // This should refresh the overall dashboard
+    
+    // Additional: Force refresh of tank configurations
+    setTimeout(() => {
+      api.get("/api/tanks/config").then(() => {
+        console.log("🔄 Tank configurations refreshed");
+      });
+    }, 1000);
+    
   } catch (error: any) {
     console.error("Failed to process adjustment:", error);
     
-    // More specific error handling
     const errorMessage = error.response?.data?.message || "Failed to process adjustment";
     
     toast({
@@ -152,7 +161,6 @@ const handleApproveAdjustment = async (adjustmentId: string, approved: boolean, 
       variant: "destructive",
     });
     
-    // Refresh data to get current status
     fetchStockAuditData();
   } finally {
     setProcessingId(null);

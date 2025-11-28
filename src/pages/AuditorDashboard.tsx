@@ -1,5 +1,4 @@
-// pages/AuditorDashboard.tsx - UPDATED VERSION
-import { Shield, Clock, DollarSign, Droplet, FileCheck, CheckCircle, XCircle } from "lucide-react";
+import { Shield, Clock, DollarSign, Droplet, FileCheck, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { StatCard } from "@/components/Dashboard/StatCard";
 import { useState, useEffect } from "react";
 import api from "@/utils/api";
@@ -9,6 +8,7 @@ import { FuelStockAudit } from "@/components/Audit/FuelStockAudit";
 import { SalesRecordsAudit } from "@/components/Audit/SalesRecordsAudit";
 import { PendingShiftsAudit } from "@/components/Audit/PendingShiftsAudit";
 import { CashExpenseAudit } from "@/components/Audit/CashExpenseAudit";
+import { Button } from "@/components/ui/button";
 
 interface AuditorStats {
   pendingShifts: number;
@@ -30,11 +30,12 @@ const AuditorDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("shifts");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchAuditorStats();
-  }, []);
+  }, [refreshTrigger]);
 
   const fetchAuditorStats = async () => {
     try {
@@ -54,6 +55,19 @@ const AuditorDashboard = () => {
     }
   };
 
+  const handleRefresh = () => {
+    setRefreshTrigger(prev => prev + 1);
+    toast({
+      title: "Refreshing",
+      description: "Updating auditor statistics...",
+    });
+  };
+
+  const handleUpdateStats = () => {
+    // This function will be passed to child components
+    fetchAuditorStats();
+  };
+
   const tabs = [
     { id: "shifts", name: "Shift Reports", icon: Clock, count: stats.pendingShifts },
     { id: "cash", name: "Cash & Expenses", icon: DollarSign, count: stats.pendingCashEntries },
@@ -65,17 +79,17 @@ const AuditorDashboard = () => {
   const renderActiveTab = () => {
     switch (activeTab) {
       case "shifts":
-        return <PendingShiftsAudit onUpdate={fetchAuditorStats} />;
+        return <PendingShiftsAudit onUpdate={handleUpdateStats} />;
       case "cash":
-        return <CashExpenseAudit onUpdate={fetchAuditorStats} />;
+        return <CashExpenseAudit onUpdate={handleUpdateStats} />;
       case "stock":
-        return <FuelStockAudit onUpdate={fetchAuditorStats} />;
+        return <FuelStockAudit onUpdate={handleUpdateStats} />;
       case "sales":
-        return <SalesRecordsAudit onUpdate={fetchAuditorStats} />;
+        return <SalesRecordsAudit onUpdate={handleUpdateStats} />;
       case "report":
-        // return <AuditReport onUpdate={fetchAuditorStats} />;
+        // return <AuditReport onUpdate={handleUpdateStats} />;
       default:
-        return <PendingShiftsAudit onUpdate={fetchAuditorStats} />;
+        return <PendingShiftsAudit onUpdate={handleUpdateStats} />;
     }
   };
 
@@ -92,15 +106,26 @@ const AuditorDashboard = () => {
             Verify and approve daily operations, detect discrepancies
           </p>
         </div>
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-2 text-green-600">
-            <CheckCircle className="w-4 h-4" />
-            <span>Approved: {stats.totalApproved}</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-4 h-4" />
+              <span>Approved: {stats.totalApproved}</span>
+            </div>
+            <div className="flex items-center gap-2 text-red-600">
+              <XCircle className="w-4 h-4" />
+              <span>Rejected: {stats.totalRejected}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-red-600">
-            <XCircle className="w-4 h-4" />
-            <span>Rejected: {stats.totalRejected}</span>
-          </div>
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline" 
+            size="sm"
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </div>
 

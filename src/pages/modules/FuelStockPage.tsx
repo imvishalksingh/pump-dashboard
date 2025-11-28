@@ -1,4 +1,4 @@
-// pages/FuelStockPage.tsx - UPDATED WITH INTEGRATED TANK MANAGEMENT
+// pages/FuelStockPage.tsx - COMPLETE FIXED VERSION
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/Shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -15,31 +15,19 @@ import { TankConfigModal } from "@/components/Modals/TankConfigModal";
 import { CalibrationModal } from "@/components/Modals/CalibrationModal";
 import api from "@/utils/api";
 
-// Combined interfaces
+// Combined interfaces - UPDATED WITH SAFE DEFAULTS
 interface TankConfig {
   _id: string;
   tankName: string;
-  product: string;
+  product: "MS" | "HSD";
   capacity: number;
-  tankShape: string;
-  dimensions: {
-    length?: number;
-    diameter?: number;
-    width?: number;
-    height?: number;
-  };
-  calibrationTable: Array<{
-    dipMM: number;
-    volumeLiters: number;
-  }>;
   isActive: boolean;
-  calibrationDate: string;
   lastCalibrationBy?: string;
   createdAt: string;
+  updatedAt: string;
   currentStock?: number;
   currentLevel?: number;
   alert?: boolean;
-  lastCalibrationDate?: string;
 }
 
 interface StockTransaction {
@@ -92,24 +80,33 @@ export const FuelStockPage = () => {
       // Fetch tank configuration and stock data
       const tanksResponse = await api.get("/api/tanks/config");
       const tankData = tanksResponse.data.tanks || [];
-      setTanks(tankData);
+      
+      // ADD SAFE FALLBACKS FOR MISSING FIELDS
+      const tanksWithDefaults = tankData.map(tank => ({
+        ...tank,
+        currentStock: tank.currentStock || 0,
+        currentLevel: tank.currentLevel || 0,
+        alert: tank.alert || false
+      }));
+      
+      setTanks(tanksWithDefaults);
       
       // Fetch stock transactions
       const transactionsResponse = await api.get("/api/stock/transactions");
       setTransactions(transactionsResponse.data);
       
       // Calculate stats from tank data
-      const totalCapacity = tankData.reduce((sum: number, tank: TankConfig) => sum + tank.capacity, 0);
-      const totalCurrent = tankData.reduce((sum: number, tank: TankConfig) => sum + (tank.currentStock || 0), 0);
+      const totalCapacity = tanksWithDefaults.reduce((sum: number, tank: TankConfig) => sum + tank.capacity, 0);
+      const totalCurrent = tanksWithDefaults.reduce((sum: number, tank: TankConfig) => sum + (tank.currentStock || 0), 0);
       const averageLevel = totalCapacity > 0 ? Math.round((totalCurrent / totalCapacity) * 100) : 0;
-      const lowStockAlerts = tankData.filter((tank: TankConfig) => tank.alert).length;
+      const lowStockAlerts = tanksWithDefaults.filter((tank: TankConfig) => tank.alert).length;
 
       setStats({
         totalCapacity,
         totalCurrent,
         averageLevel,
         lowStockAlerts,
-        totalTanks: tankData.length
+        totalTanks: tanksWithDefaults.length
       });
       
     } catch (error: any) {
@@ -172,64 +169,31 @@ export const FuelStockPage = () => {
     });
   };
 
+  // Emergency sync function
+  // const handleSyncTanks = async () => {
+  //   try {
+  //     await api.post("/api/stock/sync-tanks");
+  //     toast({
+  //       title: "Success",
+  //       description: "Tank stocks synchronized successfully",
+  //     });
+  //     fetchStockData();
+  //   } catch (error: any) {
+  //     toast({
+  //       title: "Error",
+  //       description: error.response?.data?.message || "Failed to sync tank stocks",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
+
   // Tank helper functions
-  const getTankShapeName = (shape: string) => {
-    const shapes: { [key: string]: string } = {
-      horizontal_cylinder: "Horizontal Cylinder",
-      rectangular: "Rectangular",
-      capsule: "Capsule",
-      custom: "Custom"
+  const getProductDetails = (product: "MS" | "HSD") => {
+    const products = {
+      "MS": { name: "Petrol (MS)", color: "text-green-600", bgColor: "bg-green-50" },
+      "HSD": { name: "Diesel (HSD)", color: "text-blue-600", bgColor: "bg-blue-50" }
     };
-    return shapes[shape] || shape;
-  };
-
-  const getDimensionsText = (tank: TankConfig) => {
-    const { dimensions, tankShape } = tank;
-    
-    switch (tankShape) {
-      case "horizontal_cylinder":
-        return `⌀${dimensions.diameter}m × ${dimensions.length}m`;
-      case "rectangular":
-        return `${dimensions.length}m × ${dimensions.width}m × ${dimensions.height}m`;
-      case "capsule":
-        return `⌀${dimensions.diameter}m × ${dimensions.length}m (Capsule)`;
-      default:
-        return "Custom dimensions";
-    }
-  };
-
-  const getTankVolumeInfo = (tank: TankConfig) => {
-    const { dimensions, tankShape } = tank;
-    
-    switch (tankShape) {
-      case "horizontal_cylinder":
-        if (dimensions.diameter && dimensions.length) {
-          const radius = dimensions.diameter / 2;
-          const volume = Math.PI * Math.pow(radius, 2) * dimensions.length;
-          return volume.toFixed(2) + ' m³';
-        }
-        break;
-        
-      case "rectangular":
-        if (dimensions.length && dimensions.width && dimensions.height) {
-          const volume = dimensions.length * dimensions.width * dimensions.height;
-          return volume.toFixed(2) + ' m³';
-        }
-        break;
-        
-      case "capsule":
-        if (dimensions.diameter && dimensions.length) {
-          const radius = dimensions.diameter / 2;
-          const cylinderLength = dimensions.length - dimensions.diameter;
-          const cylinderVolume = Math.PI * Math.pow(radius, 2) * cylinderLength;
-          const sphereVolume = (4/3) * Math.PI * Math.pow(radius, 3);
-          const volume = cylinderVolume + sphereVolume;
-          return volume.toFixed(2) + ' m³';
-        }
-        break;
-    }
-    
-    return "Calculate volume after calibration";
+    return products[product] || { name: product, color: "text-gray-600", bgColor: "bg-gray-50" };
   };
 
   // Safe number formatting function
@@ -339,12 +303,16 @@ export const FuelStockPage = () => {
         title="Fuel Stock & Tank Management"
         description={`Monitor fuel inventory and manage tank configurations across ${tanks.length} tanks`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <QuickDipCalculator />
             <Button variant="outline" onClick={handleRefresh}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </Button>
+            {/* <Button variant="outline" onClick={handleSyncTanks}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Sync Tanks
+            </Button> */}
             <Button variant="outline" onClick={handleExport}>
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -451,12 +419,13 @@ export const FuelStockPage = () => {
                 const todayActivity = getTodayActivity(tank._id);
                 const hasActivity = todayActivity.added > 0 || todayActivity.deducted > 0 || 
                                   todayActivity.purchases > 0 || todayActivity.sales > 0;
+                const productDetails = getProductDetails(tank.product);
 
                 return (
                   <Card key={tank._id} className="relative">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Droplet className="h-4 w-4 text-blue-600" />
+                        <Droplet className={`h-4 w-4 ${productDetails.color}`} />
                         {tank.tankName}
                       </CardTitle>
                       <div className="flex items-center gap-1">
@@ -469,6 +438,13 @@ export const FuelStockPage = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
+                      {/* Product Type */}
+                      <div className={`p-2 rounded-md ${productDetails.bgColor}`}>
+                        <div className={`text-sm font-medium text-center ${productDetails.color}`}>
+                          {productDetails.name}
+                        </div>
+                      </div>
+
                       {/* Main Stock Info */}
                       <div className="flex items-baseline justify-between">
                         <div className="text-2xl font-bold">{formatNumber(tank.currentStock)} L</div>
@@ -489,12 +465,6 @@ export const FuelStockPage = () => {
                             Low Stock
                           </span>
                         )}
-                      </div>
-
-                      {/* Product Info */}
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">Product:</span>
-                        <div className="font-medium">{tank.product}</div>
                       </div>
 
                       {/* Today's Activity */}
@@ -561,12 +531,9 @@ export const FuelStockPage = () => {
                         )}
                       </div>
 
-                      {/* Calibration Status */}
+                      {/* Calculation Method */}
                       <div className="text-xs text-muted-foreground">
-                        Calibration: {tank.calibrationTable?.length || 0} points
-                        {tank.lastCalibrationDate && (
-                          <span> • {new Date(tank.lastCalibrationDate).toLocaleDateString()}</span>
-                        )}
+                        Calculation: {tank.product === "MS" ? "MS Formula" : "HSD Formula"}
                       </div>
                     </CardContent>
                   </Card>
@@ -576,53 +543,55 @@ export const FuelStockPage = () => {
           </div>
 
           {/* Statistics Cards */}
-          <div className="grid gap-6 md:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Capacity</CardTitle>
-                <Droplet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(stats?.totalCapacity)} L</div>
-                <p className="text-xs text-muted-foreground mt-1">Across {stats?.totalTanks} tanks</p>
-              </CardContent>
-            </Card>
+          {stats && (
+            <div className="grid gap-6 md:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Total Capacity</CardTitle>
+                  <Droplet className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatNumber(stats.totalCapacity)} L</div>
+                  <p className="text-xs text-muted-foreground mt-1">Across {stats.totalTanks} tanks</p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Current Stock</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(stats?.totalCurrent)} L</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formatNumber(stats?.averageLevel)}% average
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Current Stock</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatNumber(stats.totalCurrent)} L</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatNumber(stats.averageLevel)}% average
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Average Level</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(stats?.averageLevel)}%</div>
-                <p className="text-xs text-muted-foreground mt-1">Across all tanks</p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Average Level</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatNumber(stats.averageLevel)}%</div>
+                  <p className="text-xs text-muted-foreground mt-1">Across all tanks</p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Low Stock Alerts</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-destructive">{formatNumber(stats?.lowStockAlerts)}</div>
-                <p className="text-xs text-muted-foreground mt-1">Tanks below 20%</p>
-              </CardContent>
-            </Card>
-          </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Low Stock Alerts</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-destructive">{formatNumber(stats.lowStockAlerts)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Tanks below 20%</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
 
         {/* TANK MANAGEMENT TAB */}
@@ -631,7 +600,7 @@ export const FuelStockPage = () => {
             <div>
               <h2 className="text-2xl font-bold tracking-tight">Tank Configuration</h2>
               <p className="text-muted-foreground">
-                Configure and manage fuel storage tanks with certified calibration
+                Configure and manage MS (Petrol) and HSD (Diesel) storage tanks with mathematical volume calculation
               </p>
             </div>
             <Button onClick={handleCreateTank}>
@@ -656,85 +625,105 @@ export const FuelStockPage = () => {
                 </CardContent>
               </Card>
             ) : (
-              tanks.map((tank) => (
-                <Card key={tank._id} className="relative">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <Droplet className="h-4 w-4 text-blue-600" />
-                      {tank.tankName}
-                    </CardTitle>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleCalibrateTank(tank)}
-                        title="Calibrate tank"
-                      >
-                        <Table className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditTank(tank)}
-                        title="Edit tank"
-                      >
-                        <Settings className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Product:</span>
-                        <div className="font-medium">{tank.product}</div>
+              tanks.map((tank) => {
+                const productDetails = getProductDetails(tank.product);
+                return (
+                  <Card key={tank._id} className="relative">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Droplet className={`h-4 w-4 ${productDetails.color}`} />
+                        {tank.tankName}
+                      </CardTitle>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditTank(tank)}
+                          title="Edit tank"
+                        >
+                          <Settings className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Capacity:</span>
-                        <div className="font-medium">{tank.capacity.toLocaleString()} L</div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {/* Product Type */}
+                      <div className={`p-2 rounded-md ${productDetails.bgColor}`}>
+                        <div className={`text-sm font-medium text-center ${productDetails.color}`}>
+                          {productDetails.name}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Shape:</span>
-                      <div className="font-medium">{getTankShapeName(tank.tankShape)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {getDimensionsText(tank)}
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Capacity:</span>
+                          <div className="font-medium">{tank.capacity.toLocaleString()} L</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Current Stock:</span>
+                          <div className="font-medium">{formatNumber(tank.currentStock)} L</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Level:</span>
+                          <div className="font-medium">{formatNumber(tank.currentLevel)}%</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Status:</span>
+                          <div className="font-medium">
+                            {tank.isActive ? (
+                              <span className="text-green-600">Active</span>
+                            ) : (
+                              <span className="text-amber-600">Inactive</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Calibration:</span>
-                      <div className="flex items-center gap-1 text-xs">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(tank.calibrationDate).toLocaleDateString()}
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Calculation:</span>
+                        <div className="flex items-center gap-1 text-xs">
+                          <Table className="h-3 w-3" />
+                          {tank.product === "MS" ? "MS Formula" : "HSD Formula"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Mathematical volume calculation
+                        </div>
                       </div>
-                      {tank.lastCalibrationBy && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <User className="h-3 w-3" />
-                          by {tank.lastCalibrationBy}
+
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Last Updated:</span>
+                        <div className="flex items-center gap-1 text-xs">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(tank.updatedAt).toLocaleDateString()}
+                        </div>
+                        {tank.lastCalibrationBy && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <User className="h-3 w-3" />
+                            by {tank.lastCalibrationBy}
+                          </div>
+                        )}
+                      </div>
+
+                      {!tank.isActive && (
+                        <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                          <AlertTriangle className="h-3 w-3" />
+                          Inactive
                         </div>
                       )}
-                      <div className="text-xs text-muted-foreground">
-                        {tank.calibrationTable?.length || 0} calibration points
-                      </div>
-                    </div>
 
-                    {(!tank.calibrationTable || tank.calibrationTable.length === 0) && (
-                      <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 p-2 rounded">
-                        <AlertTriangle className="h-3 w-3" />
-                        Calibration required
+                      <div className="flex gap-2 pt-2">
+                        <QuickDipCalculator />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditTank(tank)}
+                        >
+                          Edit
+                        </Button>
                       </div>
-                    )}
-
-                    {!tank.isActive && (
-                      <div className="flex items-center gap-1 text-xs text-amber-600">
-                        <AlertTriangle className="h-3 w-3" />
-                        Inactive
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                );
+              })
             )}
           </div>
         </TabsContent>

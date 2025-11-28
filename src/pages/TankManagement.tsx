@@ -3,75 +3,27 @@ import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/Shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Droplet, Upload, Table, AlertTriangle, Calendar, User } from "lucide-react";
+import { Plus, Droplet, Calculator, AlertTriangle, Calendar, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/utils/api";
 import { TankConfigModal } from "@/components/Modals/TankConfigModal";
-import { CalibrationModal } from "@/components/Modals/CalibrationModal";
+import { QuickDipCalculator } from "../pages/modules/QuickDipCalculator";
 
-// pages/TankManagement.tsx - Update the interface at the top
 interface TankConfig {
   _id: string;
   tankName: string;
-  product: string;
+  product: "MS" | "HSD";
   capacity: number;
-  tankShape: string;
-  dimensions: {
-    length?: number;
-    diameter?: number;
-    width?: number;
-    height?: number;
-  };
-  calibrationTable: Array<{
-    dipMM: number;
-    volumeLiters: number;
-  }>;
   isActive: boolean;
-  calibrationDate: string;
   lastCalibrationBy?: string;
   createdAt: string;
+  updatedAt: string;
 }
-
-// Remove the old calculateVolume function and replace with:
-const getTankVolumeInfo = (tank: TankConfig) => {
-  const { dimensions, tankShape } = tank;
-  
-  switch (tankShape) {
-    case "horizontal_cylinder":
-      if (dimensions.diameter && dimensions.length) {
-        const radius = dimensions.diameter / 2;
-        const volume = Math.PI * Math.pow(radius, 2) * dimensions.length;
-        return volume.toFixed(2) + ' m³';
-      }
-      break;
-      
-    case "rectangular":
-      if (dimensions.length && dimensions.width && dimensions.height) {
-        const volume = dimensions.length * dimensions.width * dimensions.height;
-        return volume.toFixed(2) + ' m³';
-      }
-      break;
-      
-    case "capsule":
-      if (dimensions.diameter && dimensions.length) {
-        const radius = dimensions.diameter / 2;
-        const cylinderLength = dimensions.length - dimensions.diameter;
-        const cylinderVolume = Math.PI * Math.pow(radius, 2) * cylinderLength;
-        const sphereVolume = (4/3) * Math.PI * Math.pow(radius, 3);
-        const volume = cylinderVolume + sphereVolume;
-        return volume.toFixed(2) + ' m³';
-      }
-      break;
-  }
-  
-  return "Calculate volume after calibration";
-};
 
 export const TankManagement = () => {
   const [tanks, setTanks] = useState<TankConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [configModalOpen, setConfigModalOpen] = useState(false);
-  const [calibrationModalOpen, setCalibrationModalOpen] = useState(false);
   const [selectedTank, setSelectedTank] = useState<TankConfig | null>(null);
   const { toast } = useToast();
 
@@ -106,11 +58,6 @@ export const TankManagement = () => {
     setConfigModalOpen(true);
   };
 
-  const handleCalibrateTank = (tank: TankConfig) => {
-    setSelectedTank(tank);
-    setCalibrationModalOpen(true);
-  };
-
   const handleDeleteTank = async (tankId: string) => {
     if (!confirm("Are you sure you want to delete this tank configuration?")) {
       return;
@@ -132,29 +79,12 @@ export const TankManagement = () => {
     }
   };
 
-  const getTankShapeName = (shape: string) => {
-    const shapes: { [key: string]: string } = {
-      horizontal_cylinder: "Horizontal Cylinder",
-      rectangular: "Rectangular",
-      capsule: "Capsule",
-      custom: "Custom"
+  const getProductDetails = (product: "MS" | "HSD") => {
+    const products = {
+      "MS": { name: "Petrol (MS)", color: "text-green-600", bgColor: "bg-green-50" },
+      "HSD": { name: "Diesel (HSD)", color: "text-blue-600", bgColor: "bg-blue-50" }
     };
-    return shapes[shape] || shape;
-  };
-
-  const getDimensionsText = (tank: TankConfig) => {
-    const { dimensions, tankShape } = tank;
-    
-    switch (tankShape) {
-      case "horizontal_cylinder":
-        return `⌀${dimensions.diameter}m × ${dimensions.length}m`;
-      case "rectangular":
-        return `${dimensions.length}m × ${dimensions.width}m × ${dimensions.height}m`;
-      case "capsule":
-        return `⌀${dimensions.diameter}m × ${dimensions.length}m (Capsule)`;
-      default:
-        return "Custom dimensions";
-    }
+    return products[product] || { name: product, color: "text-gray-600", bgColor: "bg-gray-50" };
   };
 
   if (loading) {
@@ -174,12 +104,15 @@ export const TankManagement = () => {
     <div className="min-h-screen bg-background p-6">
       <PageHeader
         title="Tank Management"
-        description="Configure and manage fuel storage tanks with certified calibration"
+        description="Configure and manage MS (Petrol) and HSD (Diesel) storage tanks with mathematical volume calculation"
         actions={
-          <Button onClick={handleCreateTank}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Tank
-          </Button>
+          <div className="flex gap-2">
+            <QuickDipCalculator onCalculationComplete={fetchTanks} />
+            <Button onClick={handleCreateTank}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Tank
+            </Button>
+          </div>
         }
       />
 
@@ -199,98 +132,104 @@ export const TankManagement = () => {
             </CardContent>
           </Card>
         ) : (
-          tanks.map((tank) => (
-            <Card key={tank._id} className="relative">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Droplet className="h-4 w-4 text-blue-600" />
-                  {tank.tankName}
-                </CardTitle>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleCalibrateTank(tank)}
-                    title="Calibrate tank"
-                  >
-                    <Table className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEditTank(tank)}
-                    title="Edit tank"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Product:</span>
-                    <div className="font-medium">{tank.product}</div>
+          tanks.map((tank) => {
+            const productDetails = getProductDetails(tank.product);
+            return (
+              <Card key={tank._id} className="relative">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Droplet className={`h-4 w-4 ${productDetails.color}`} />
+                    {tank.tankName}
+                  </CardTitle>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditTank(tank)}
+                      title="Edit tank"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Capacity:</span>
-                    <div className="font-medium">{tank.capacity.toLocaleString()} L</div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className={`p-2 rounded-md ${productDetails.bgColor}`}>
+                    <div className="text-sm font-medium text-center {productDetails.color}">
+                      {productDetails.name}
+                    </div>
                   </div>
-                </div>
 
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Shape:</span>
-                  <div className="font-medium">{getTankShapeName(tank.tankShape)}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {getDimensionsText(tank)}
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Capacity:</span>
+                      <div className="font-medium">{tank.capacity.toLocaleString()} L</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Status:</span>
+                      <div className="font-medium">
+                        {tank.isActive ? (
+                          <span className="text-green-600">Active</span>
+                        ) : (
+                          <span className="text-amber-600">Inactive</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Calibration:</span>
-                  <div className="flex items-center gap-1 text-xs">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(tank.calibrationDate).toLocaleDateString()}
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Calculation:</span>
+                    <div className="flex items-center gap-1 text-xs">
+                      <Calculator className="h-3 w-3" />
+                      {tank.product === "MS" ? "MS Formula" : "HSD Formula"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Mathematical volume calculation
+                    </div>
                   </div>
-                  {tank.lastCalibrationBy && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <User className="h-3 w-3" />
-                      by {tank.lastCalibrationBy}
+
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Last Updated:</span>
+                    <div className="flex items-center gap-1 text-xs">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(tank.updatedAt).toLocaleDateString()}
+                    </div>
+                    {tank.lastCalibrationBy && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <User className="h-3 w-3" />
+                        by {tank.lastCalibrationBy}
+                      </div>
+                    )}
+                  </div>
+
+                  {!tank.isActive && (
+                    <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                      <AlertTriangle className="h-3 w-3" />
+                      Inactive
                     </div>
                   )}
-                  <div className="text-xs text-muted-foreground">
-                    {tank.calibrationTable?.length || 0} calibration points
-                  </div>
-                </div>
 
-                {(!tank.calibrationTable || tank.calibrationTable.length === 0) && (
-                  <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 p-2 rounded">
-                    <AlertTriangle className="h-3 w-3" />
-                    Calibration required
+                  <div className="flex gap-2 pt-2">
+                    <QuickDipCalculator 
+                      onCalculationComplete={fetchTanks}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditTank(tank)}
+                    >
+                      Edit
+                    </Button>
                   </div>
-                )}
-
-                {!tank.isActive && (
-                  <div className="flex items-center gap-1 text-xs text-amber-600">
-                    <AlertTriangle className="h-3 w-3" />
-                    Inactive
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
 
       <TankConfigModal
         open={configModalOpen}
         onOpenChange={setConfigModalOpen}
-        tank={selectedTank}
-        onSuccess={fetchTanks}
-      />
-
-      <CalibrationModal
-        open={calibrationModalOpen}
-        onOpenChange={setCalibrationModalOpen}
         tank={selectedTank}
         onSuccess={fetchTanks}
       />

@@ -1,4 +1,4 @@
-// pages/SalesManagementPage.tsx - COMPLETE VERSION
+// pages/SalesManagementPage.tsx - UPDATED VERSION WITHOUT METER READING TAB
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/Shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +39,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+import { ManualEntryDialog } from "@/components/Sales/ManualEntryDialog";
 
 interface Shift {
   _id: string;
@@ -101,11 +103,15 @@ interface NozzlemanSale {
   cashDeposit: number;
   fuelDispensed: number;
   shifts: Shift[];
+  sales: any[];
   meterReadings: {
     HSD: { opening: number; closing: number };
     Petrol: { opening: number; closing: number };
   };
   cashInHand: number;
+  totalShifts: number;
+  approvedShifts: number;
+  manualEntries: number;
 }
 
 interface NozzlemanSalesResponse {
@@ -202,6 +208,12 @@ interface Pump {
   nozzles: Nozzle[];
 }
 
+interface Nozzleman {
+  _id: string;
+  name: string;
+  employeeId: string;
+}
+
 type ViewMode = "overview" | "nozzleman-detail";
 
 export const SalesManagementPage = () => {
@@ -255,10 +267,26 @@ export const SalesManagementPage = () => {
     to: new Date()
   });
   const { toast } = useToast();
+  const [nozzlemen, setNozzlemen] = useState<Nozzleman[]>([]);
   const [isBulkAssignmentOpen, setIsBulkAssignmentOpen] = useState(false);
+
+  const fetchNozzlemen = async () => {
+    try {
+      const response = await api.get("/api/nozzlemen");
+      setNozzlemen(response.data);
+    } catch (error: any) {
+      console.error("❌ Failed to fetch nozzlemen:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch nozzlemen list",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     fetchSalesData();
+    fetchNozzlemen();
   }, [dateRange]);
 
   useEffect(() => {
@@ -362,59 +390,56 @@ export const SalesManagementPage = () => {
   };
 
   const createAssignment = async () => {
-  try {
-    if (!newAssignment.nozzle || !newAssignment.pump) {
+    try {
+      if (!newAssignment.nozzle || !newAssignment.pump) {
+        toast({
+          title: "Error",
+          description: "Please select both pump and nozzle",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const assignmentData = {
+        ...newAssignment,
+        assignedDate: selectedDate,
+        nozzleman: selectedNozzleman?.nozzleman._id
+      };
+
+      console.log("📝 Creating assignment with data:", assignmentData);
+
+      const response = await api.post('/api/assignments', assignmentData);
+      
+      toast({
+        title: "Success",
+        description: "Assignment created successfully",
+        variant: "default",
+      });
+
+      setIsAssignmentDialogOpen(false);
+      
+      setNewAssignment({
+        nozzleman: selectedNozzleman?.nozzleman._id || "",
+        nozzle: "",
+        pump: "",
+        shift: "Morning",
+        startTime: "08:00",
+        endTime: "16:00"
+      });
+
+      if (selectedNozzleman) {
+        fetchAssignments(selectedNozzleman.nozzleman._id);
+      }
+
+    } catch (error: any) {
+      console.error("❌ Failed to create assignment:", error);
       toast({
         title: "Error",
-        description: "Please select both pump and nozzle",
+        description: error.response?.data?.message || "Failed to create assignment",
         variant: "destructive",
       });
-      return;
     }
-
-    // Use the selected nozzleman's ID
-    const assignmentData = {
-      ...newAssignment,
-      assignedDate: selectedDate,
-      nozzleman: selectedNozzleman?.nozzleman._id // This was missing
-    };
-
-    console.log("📝 Creating assignment with data:", assignmentData);
-
-    const response = await api.post('/api/assignments', assignmentData);
-    
-    toast({
-      title: "Success",
-      description: "Assignment created successfully",
-      variant: "default",
-    });
-
-    setIsAssignmentDialogOpen(false);
-    
-    // Reset form with proper values
-    setNewAssignment({
-      nozzleman: selectedNozzleman?.nozzleman._id || "", // Set the nozzleman ID
-      nozzle: "",
-      pump: "",
-      shift: "Morning",
-      startTime: "08:00",
-      endTime: "16:00"
-    });
-
-    // Refresh assignments
-    if (selectedNozzleman) {
-      fetchAssignments(selectedNozzleman.nozzleman._id);
-    }
-
-  } catch (error: any) {
-    console.error("❌ Failed to create assignment:", error);
-    toast({
-      title: "Error",
-      description: error.response?.data?.message || "Failed to create assignment",
-      variant: "destructive",
-    });
-  }
-};
+  };
 
   const removeAssignment = async (assignmentId: string) => {
     try {
@@ -693,15 +718,14 @@ export const SalesManagementPage = () => {
           
           <div className="flex items-center gap-2">
             <Dialog open={isAssignmentDialogOpen} onOpenChange={(open) => {
-  setIsAssignmentDialogOpen(open);
-  if (open && selectedNozzleman) {
-    // Set the nozzleman when dialog opens
-    setNewAssignment(prev => ({
-      ...prev,
-      nozzleman: selectedNozzleman.nozzleman._id
-    }));
-  }
-}}>
+              setIsAssignmentDialogOpen(open);
+              if (open && selectedNozzleman) {
+                setNewAssignment(prev => ({
+                  ...prev,
+                  nozzleman: selectedNozzleman.nozzleman._id
+                }));
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -781,7 +805,7 @@ export const SalesManagementPage = () => {
                           .filter(nozzle => nozzle.pump._id === newAssignment.pump)
                           .map((nozzle) => (
                             <SelectItem key={nozzle._id} value={nozzle._id}>
-                              {nozzle.number} - {nozzle.fuelType} (Current: {nozzle.currentReading}L)
+                              {nozzle.number} - {nozzle.fuelType} (Current: {nozzle.currentReading})
                             </SelectItem>
                           ))
                         }
@@ -1079,6 +1103,7 @@ export const SalesManagementPage = () => {
               </Card>
             </div>
 
+            {/* METER READINGS SECTION - ONLY IN NOZZLEMAN DETAIL VIEW */}
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -1092,25 +1117,28 @@ export const SalesManagementPage = () => {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Opening Balance</label>
                       <div className="p-3 border rounded bg-muted/50 font-mono text-lg">
-                        {formatNumber(nozzlemanStats.meterReadings.hsd.opening)} L
+                        {formatNumber(nozzlemanStats.meterReadings.hsd.opening)}
                       </div>
-                      <p className="text-xs text-muted-foreground">Cumulative opening</p>
+                      <p className="text-xs text-muted-foreground">Previous day closing</p>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Closing Balance</label>
                       <div className="p-3 border rounded bg-muted/50 font-mono text-lg">
-                        {formatNumber(nozzlemanStats.meterReadings.hsd.closing)} L
+                        {formatNumber(nozzlemanStats.meterReadings.hsd.closing)}
                       </div>
-                      <p className="text-xs text-muted-foreground">Cumulative closing</p>
+                      <p className="text-xs text-muted-foreground">Today's closing</p>
                     </div>
                   </div>
                   <div className="p-4 bg-blue-50 rounded-lg border">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-blue-900">HSD Sales:</span>
                       <span className="font-bold text-blue-700 text-lg">
-                        {formatNumber(nozzlemanStats.meterReadings.hsd.sales)} L
+                        {formatNumber(nozzlemanStats.meterReadings.hsd.sales)}
                       </span>
                     </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Next day opening will be: {formatNumber(nozzlemanStats.meterReadings.hsd.closing)}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -1127,25 +1155,28 @@ export const SalesManagementPage = () => {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Opening Balance</label>
                       <div className="p-3 border rounded bg-muted/50 font-mono text-lg">
-                        {formatNumber(nozzlemanStats.meterReadings.petrol.opening)} L
+                        {formatNumber(nozzlemanStats.meterReadings.petrol.opening)}
                       </div>
-                      <p className="text-xs text-muted-foreground">Cumulative opening</p>
+                      <p className="text-xs text-muted-foreground">Previous day closing</p>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Closing Balance</label>
                       <div className="p-3 border rounded bg-muted/50 font-mono text-lg">
-                        {formatNumber(nozzlemanStats.meterReadings.petrol.closing)} L
+                        {formatNumber(nozzlemanStats.meterReadings.petrol.closing)}
                       </div>
-                      <p className="text-xs text-muted-foreground">Cumulative closing</p>
+                      <p className="text-xs text-muted-foreground">Today's closing</p>
                     </div>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg border">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-green-900">Petrol Sales:</span>
                       <span className="font-bold text-green-700 text-lg">
-                        {formatNumber(nozzlemanStats.meterReadings.petrol.sales)} L
+                        {formatNumber(nozzlemanStats.meterReadings.petrol.sales)}
                       </span>
                     </div>
+                    <p className="text-xs text-green-600 mt-1">
+                      Next day opening will be: {formatNumber(nozzlemanStats.meterReadings.petrol.closing)}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -1197,6 +1228,10 @@ export const SalesManagementPage = () => {
         <PageHeader
           title="Sales Dashboard"
           description="Complete sales breakdown with shift-based details"
+        />
+        <ManualEntryDialog 
+          onSuccess={fetchSalesData} 
+          nozzlemen={nozzlemen} 
         />
         
         <div className="flex items-center gap-4">
@@ -1288,12 +1323,12 @@ export const SalesManagementPage = () => {
         </div>
       </div>
 
+      {/* UPDATED TABS - REMOVED METER READING TAB */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="nozzlemen">Nozzleman Sales</TabsTrigger>
           <TabsTrigger value="shifts">Shift Details</TabsTrigger>
-          <TabsTrigger value="meter">Meter Readings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -1498,19 +1533,6 @@ export const SalesManagementPage = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="p-2 rounded bg-gray-50">
-                        <p className="font-medium">HSD Meter</p>
-                        <p>Opening: {nozzleman.meterReadings.HSD.opening}L</p>
-                        <p>Closing: {nozzleman.meterReadings.HSD.closing}L</p>
-                      </div>
-                      <div className="p-2 rounded bg-gray-50">
-                        <p className="font-medium">Petrol Meter</p>
-                        <p>Opening: {nozzleman.meterReadings.Petrol.opening}L</p>
-                        <p>Closing: {nozzleman.meterReadings.Petrol.closing}L</p>
-                      </div>
-                    </div>
-
                     <div className="mt-3 text-center">
                       <Badge variant="outline" className="text-xs">
                         Click to view detailed report and assign nozzles
@@ -1522,7 +1544,9 @@ export const SalesManagementPage = () => {
                   <div className="text-center py-8 text-muted-foreground">
                     <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No nozzleman sales data available for the selected period</p>
-                    <p className="text-sm">Sales data will appear here when nozzlemen complete shifts</p>
+                    <p className="text-sm">
+                      Sales data will appear here when nozzlemen complete shifts
+                    </p>
                   </div>
                 )}
               </div>
@@ -1542,80 +1566,6 @@ export const SalesManagementPage = () => {
               <SalesTable shifts={shifts} />
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="meter">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Fuel className="h-5 w-5" />
-                  Meter Reading - HSD (Diesel)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Opening Balance</label>
-                    <div className="p-3 border rounded bg-muted/50 font-mono text-lg">
-                      {formatNumber(stats.meterReadings.hsd.opening)} L
-                    </div>
-                    <p className="text-xs text-muted-foreground">Cumulative opening</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Closing Balance</label>
-                    <div className="p-3 border rounded bg-muted/50 font-mono text-lg">
-                      {formatNumber(stats.meterReadings.hsd.closing)} L
-                    </div>
-                    <p className="text-xs text-muted-foreground">Cumulative closing</p>
-                  </div>
-                </div>
-                <div className="p-4 bg-blue-50 rounded-lg border">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-blue-900">HSD Sales:</span>
-                    <span className="font-bold text-blue-700 text-lg">
-                      {formatNumber(stats.meterReadings.hsd.sales)} L
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Fuel className="h-5 w-5" />
-                  Meter Reading - Petrol
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Opening Balance</label>
-                    <div className="p-3 border rounded bg-muted/50 font-mono text-lg">
-                      {formatNumber(stats.meterReadings.petrol.opening)} L
-                    </div>
-                    <p className="text-xs text-muted-foreground">Cumulative opening</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Closing Balance</label>
-                    <div className="p-3 border rounded bg-muted/50 font-mono text-lg">
-                      {formatNumber(stats.meterReadings.petrol.closing)} L
-                    </div>
-                    <p className="text-xs text-muted-foreground">Cumulative closing</p>
-                  </div>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg border">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-green-900">Petrol Sales:</span>
-                    <span className="font-bold text-green-700 text-lg">
-                      {formatNumber(stats.meterReadings.petrol.sales)} L
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
       </Tabs>
     </div>

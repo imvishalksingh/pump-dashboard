@@ -2,21 +2,20 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import api from "@/utils/api";
 import { Role } from "@/utils/roles";
 
-// Remove the API_URL since we're using relative paths with proxy
-// const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
 interface User {
   _id: string;
   email: string;
   name: string;
   role: Role;
   token: string;
+  nozzlemanProfile?: any; // Add this for nozzleman users
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   register: (email: string, password: string, name: string, invitationToken: string) => Promise<{ success: boolean; message?: string }>;
+  registerNozzleman: (data: any) => Promise<{ success: boolean; message?: string; data?: any }>;
   logout: () => Promise<void>;
   checkInvitation: (token: string, email: string) => Promise<{ valid: boolean; data?: any; message?: string }>;
   isAuthenticated: boolean;
@@ -91,6 +90,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // ---------- REGISTER NOZZLEMAN ----------
+  const registerNozzleman = async (data: any): Promise<{ success: boolean; message?: string; data?: any }> => {
+    try {
+      console.log("🎯 Registering new nozzleman:", data);
+      
+      const res = await api.post(`/api/auth/register-nozzleman`, data);
+      const userData = res.data;
+      console.log("✅ Nozzleman registration successful:", userData.email);
+
+      return { 
+        success: true, 
+        message: "Nozzleman registered successfully",
+        data: userData
+      };
+    } catch (err: any) {
+      console.error("❌ Nozzleman registration error:", err);
+      const errorMessage = err.response?.data?.message || "Nozzleman registration failed";
+      return { success: false, message: errorMessage };
+    }
+  };
+
   // ---------- LOGIN ----------
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
@@ -131,6 +151,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       user, 
       login, 
       register, 
+      registerNozzleman, // Add this to the context value
       logout, 
       checkInvitation,
       isAuthenticated: !!user 

@@ -1,4 +1,4 @@
-// components/Tank/QuickDipCalculator.tsx
+// components/Tank/QuickDipCalculator.tsx - FULLY FIXED
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -17,24 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calculator, Droplet, Loader2 } from "lucide-react";
+import { Calculator, Droplet, Loader2, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/utils/api";
 
 interface TankConfig {
   _id: string;
   tankName: string;
-  product: string;
+  product: "MS" | "HSD";
   capacity: number;
-  dimensions: {
-    length: number;
-    width: number;
-    height: number;
-  };
-  calibrationTable?: Array<{
-    dipMM: number;
-    volumeLiters: number;
-  }>;
 }
 
 interface QuickDipCalculatorProps {
@@ -43,7 +34,6 @@ interface QuickDipCalculatorProps {
 
 export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculatorProps) => {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [tanks, setTanks] = useState<TankConfig[]>([]);
   const [fetchingTanks, setFetchingTanks] = useState(false);
@@ -61,7 +51,8 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
     product: string;
     capacity: number;
     remainingPercentage: string;
-    calibrationPointsUsed: number;
+    formulaUsed: string;
+    dipReading: number;
   } | null>(null);
 
   // Fetch tank configurations
@@ -106,7 +97,17 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
     if (isNaN(dip) || dip < 0) {
       toast({
         title: "Invalid dip reading",
-        description: "Please enter a valid positive number",
+        description: "Please enter a valid positive number in centimeters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate dip reading range (typical range for these formulas)
+    if (dip > 200) {
+      toast({
+        title: "Unusual dip reading",
+        description: "Dip reading seems unusually high. Please verify the measurement.",
         variant: "destructive",
       });
       return;
@@ -120,13 +121,18 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
         dipReading: dip
       });
 
+      if (!response.data.success) {
+        throw new Error(response.data.error || "Calculation failed");
+      }
+
       const calculationResult = {
-        volumeLiters: response.data.volumeLiters || response.data.calculatedQuantity,
+        volumeLiters: response.data.volumeLiters,
         tankName: response.data.tankName,
         product: response.data.product,
         capacity: response.data.capacity,
         remainingPercentage: response.data.remainingPercentage,
-        calibrationPointsUsed: response.data.calibrationPointsUsed
+        formulaUsed: response.data.formulaUsed,
+        dipReading: response.data.dipReading
       };
 
       setResult(calculationResult);
@@ -138,14 +144,14 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
 
       toast({
         title: "Calculation Complete",
-        description: `Volume: ${calculationResult.volumeLiters.toLocaleString()}L`,
+        description: `Volume: ${calculationResult.volumeLiters.toLocaleString()}L (${calculationResult.remainingPercentage}% full)`,
       });
 
     } catch (error: any) {
       console.error("❌ Error calculating quantity:", error);
       toast({
         title: "Calculation Error",
-        description: error.response?.data?.message || "Failed to calculate quantity",
+        description: error.response?.data?.message || error.message || "Failed to calculate quantity",
         variant: "destructive",
       });
       setResult(null);
@@ -174,7 +180,19 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
     setResult(null);
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && formData.tank && formData.dipReading) {
+      calculateQuantity();
+    }
+  };
+
   const selectedTank = tanks.find(tank => tank._id === formData.tank);
+
+  const getFormulaDescription = (product: "MS" | "HSD") => {
+    return product === "HSD" 
+      ? "HSD Formula: 671.8 constant"
+      : "MS Formula: 496.8 constant";
+  };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -187,7 +205,7 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
           Quick Calculate
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[450px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="h-5 w-5 text-blue-600" />
@@ -217,7 +235,6 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
                       <span className="font-medium">{tank.tankName}</span>
                       <span className="text-xs text-muted-foreground">
                         {tank.product} • {tank.capacity.toLocaleString()}L
-                        {tank.calibrationTable && ` • ${tank.calibrationTable.length} cal points`}
                       </span>
                     </div>
                   </SelectItem>
@@ -226,25 +243,27 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
             </Select>
           </div>
 
-          {/* Dip Reading */}
+          {/* Dip Reading - UPDATED TO CENTIMETERS */}
           <div className="space-y-2">
-            <Label htmlFor="calculator-dip">Dip Reading (mm)</Label>
+            <Label htmlFor="calculator-dip">Dip Reading (centimeters)</Label>
             <div className="flex gap-2">
               <Input 
                 id="calculator-dip" 
                 type="number"
-                placeholder="Enter dip reading in millimeters"
-                step="1"
+                placeholder="Enter dip in cm (e.g., 138.60)"
+                step="0.01"
                 min="0"
+                max="200"
                 value={formData.dipReading}
                 onChange={(e) => handleChange("dipReading", e.target.value)}
-                disabled={!formData.tank}
+                onKeyPress={handleKeyPress}
+                disabled={!formData.tank || calculating}
               />
               <Button 
                 type="button" 
                 onClick={calculateQuantity}
                 disabled={!formData.tank || !formData.dipReading || calculating}
-                className="whitespace-nowrap"
+                className="whitespace-nowrap min-w-[120px]"
               >
                 {calculating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -255,10 +274,14 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
               </Button>
             </div>
             {selectedTank && (
-              <p className="text-xs text-muted-foreground">
-                Tank Height: {selectedTank.dimensions.height || 'N/A'}m • 
-                Capacity: {selectedTank.capacity.toLocaleString()}L
-              </p>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  Product: {selectedTank.product} • Capacity: {selectedTank.capacity.toLocaleString()}L
+                </p>
+                <p className="text-xs text-blue-600 font-medium">
+                  {getFormulaDescription(selectedTank.product)}
+                </p>
+              </div>
             )}
           </div>
 
@@ -280,6 +303,15 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
                   <div className="font-medium">{result.product}</div>
                 </div>
                 
+                <div>
+                  <span className="text-muted-foreground">Dip Reading:</span>
+                  <div className="font-medium">{result.dipReading} cm</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Tank Level:</span>
+                  <div className="font-medium">{result.remainingPercentage}%</div>
+                </div>
+                
                 <div className="col-span-2">
                   <span className="text-muted-foreground">Calculated Volume:</span>
                   <div className="text-lg font-bold text-green-700">
@@ -287,21 +319,16 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
                   </div>
                 </div>
                 
-                <div>
-                  <span className="text-muted-foreground">Tank Level:</span>
-                  <div className="font-medium">{result.remainingPercentage}%</div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Capacity:</span>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Tank Capacity:</span>
                   <div className="font-medium">{result.capacity.toLocaleString()}L</div>
                 </div>
               </div>
 
-              {result.calibrationPointsUsed > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Using {result.calibrationPointsUsed} calibration points
-                </p>
-              )}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Info className="h-3 w-3" />
+                Using {result.formulaUsed}
+              </div>
             </div>
           )}
 
@@ -324,6 +351,20 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
               <Button 
                 variant="outline" 
                 size="sm"
+                onClick={() => {
+                  const resultText = `Tank: ${result.tankName}\nDip: ${result.dipReading}cm\nVolume: ${result.volumeLiters.toLocaleString()}L\nLevel: ${result.remainingPercentage}%`;
+                  navigator.clipboard.writeText(resultText);
+                  toast({
+                    title: "Copied!",
+                    description: "Full result copied to clipboard",
+                  });
+                }}
+              >
+                Copy All
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
                 onClick={resetForm}
               >
                 New Calculation
@@ -331,12 +372,40 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
             </div>
           )}
 
-          {/* Information */}
+          {/* Information Panel */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-xs text-blue-700">
-              <strong>Note:</strong> This calculator uses the tank's calibration table for accurate volume calculation. 
-              Results are based on certified calibration data.
-            </p>
+            <div className="flex items-start gap-2">
+              <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-blue-800">Calculation Method</p>
+                <p className="text-xs text-blue-700">
+                  This calculator uses mathematical formulas based on tank type:
+                </p>
+                <ul className="text-xs text-blue-700 list-disc list-inside space-y-1">
+                  <li><strong>MS (Petrol):</strong> 496.8 × formula</li>
+                  <li><strong>HSD (Diesel):</strong> 671.8 × formula</li>
+                </ul>
+                <p className="text-xs text-blue-700 mt-1">
+                  Formula: constant × 10000 × (acos(1 - dip/100) - ((1 - dip/100) × √(1 - (1 - dip/100)²))) / 1000
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Example Values */}
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <div className="flex items-start gap-2">
+              <Info className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-amber-800">Example Values (HSD Tank)</p>
+                <div className="text-xs text-amber-700 grid grid-cols-2 gap-1 mt-1">
+                  <span>138.60 cm → 15,607 L</span>
+                  <span>124.90 cm → 13,863 L</span>
+                  <span>112.40 cm → 12,214 L</span>
+                  <span>99.60 cm → 10,499 L</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </DialogContent>

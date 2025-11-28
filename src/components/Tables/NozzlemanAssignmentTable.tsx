@@ -1,8 +1,8 @@
-// components/Tables/NozzlemanAssignmentTable.tsx
+// components/Tables/NozzlemanAssignmentTable.tsx - UPDATED
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/utils/api";
@@ -15,7 +15,7 @@ interface Assignment {
   };
   nozzle: {
     _id: string;
-    number: string | null; // ✅ Allow null
+    number: string | null;
   };
   pump: {
     _id: string;
@@ -30,9 +30,13 @@ interface Assignment {
 
 interface NozzlemanAssignmentTableProps {
   refresh?: number;
+  onUpdate?: () => void; // Make onUpdate optional
 }
 
-export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTableProps) => {
+export const NozzlemanAssignmentTable = ({ 
+  refresh = 0, 
+  onUpdate 
+}: NozzlemanAssignmentTableProps) => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -59,23 +63,38 @@ export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTab
   };
 
   const removeAssignment = async (id: string) => {
-    if (!confirm("Remove this assignment?")) {
+    if (!confirm("Are you sure you want to remove this assignment?")) {
       return;
     }
 
     try {
-      await api.delete(`/assignments/${id}`);
+      await api.delete(`/api/assignments/${id}`);
       toast({
         title: "Success",
         description: "Assignment removed successfully",
       });
-      fetchAssignments();
+      
+      // Refresh the assignments list
+      await fetchAssignments();
+      
+      // Call onUpdate callback if provided
+      if (onUpdate) {
+        onUpdate();
+      }
     } catch (error: any) {
+      console.error("Failed to remove assignment:", error);
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to remove assignment",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleRefresh = async () => {
+    await fetchAssignments();
+    if (onUpdate) {
+      onUpdate();
     }
   };
 
@@ -88,9 +107,25 @@ export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTab
     }
   };
 
-  // ✅ Safe nozzle number display
+  const getShiftTiming = (shift: string) => {
+    switch (shift) {
+      case "Morning": return "6:00 AM - 2:00 PM";
+      case "Evening": return "2:00 PM - 10:00 PM";
+      case "Night": return "10:00 PM - 6:00 AM";
+      default: return "-";
+    }
+  };
+
   const getNozzleNumber = (nozzle: { number: string | null }) => {
-    return nozzle.number || "N/A"; // Handle null/undefined cases
+    return nozzle.number || "N/A";
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
   };
 
   if (loading) {
@@ -104,6 +139,19 @@ export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTab
 
   return (
     <div className="rounded-lg border bg-card">
+      <div className="p-4 border-b flex items-center justify-between">
+        <h3 className="font-semibold">Nozzle Assignments ({assignments.length})</h3>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh}
+          disabled={loading}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+      
       <Table>
         <TableHeader>
           <TableRow>
@@ -112,49 +160,68 @@ export const NozzlemanAssignmentTable = ({ refresh = 0 }: NozzlemanAssignmentTab
             <TableHead>Pump</TableHead>
             <TableHead>Shift</TableHead>
             <TableHead>Date</TableHead>
-            <TableHead>Time</TableHead>
+            <TableHead>Timing</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {assignments.length === 0 ? (
             <TableRow>
               <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                No assignments found.
+                <div className="flex flex-col items-center justify-center">
+                  <X className="h-12 w-12 mb-4 opacity-50" />
+                  <p>No assignments found</p>
+                  <p className="text-sm">Assign nozzles to nozzlemen to see them here</p>
+                </div>
               </TableCell>
             </TableRow>
           ) : (
             assignments.map((assignment) => (
               <TableRow key={assignment._id}>
-                <TableCell className="font-medium">{assignment.nozzleman.name}</TableCell>
+                <TableCell className="font-medium">
+                  <div>
+                    <div>{assignment.nozzleman.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      ID: {assignment.nozzleman._id.slice(-6)}
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell>
-                  <Badge variant="outline">
-                    {getNozzleNumber(assignment.nozzle)} {/* ✅ Safe access */}
+                  <Badge variant="outline" className="font-mono">
+                    {getNozzleNumber(assignment.nozzle)}
                   </Badge>
                 </TableCell>
                 <TableCell>{assignment.pump.name}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{assignment.shift}</Badge>
+                  <div className="flex flex-col">
+                    <Badge variant="secondary" className="mb-1">
+                      {assignment.shift}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {getShiftTiming(assignment.shift)}
+                    </span>
+                  </div>
                 </TableCell>
-                <TableCell>{new Date(assignment.assignedDate).toLocaleDateString()}</TableCell>
+                <TableCell>{formatDate(assignment.assignedDate)}</TableCell>
                 <TableCell>
                   {assignment.startTime && assignment.endTime
                     ? `${assignment.startTime} - ${assignment.endTime}`
-                    : "-"}
+                    : getShiftTiming(assignment.shift)}
                 </TableCell>
                 <TableCell>
                   <Badge variant={getStatusColor(assignment.status) as any}>
                     {assignment.status}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-right">
                   {assignment.status === "Active" && (
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => removeAssignment(assignment._id)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      title="Remove assignment"
                     >
                       <X className="h-4 w-4" />
                     </Button>

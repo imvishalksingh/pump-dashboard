@@ -1,4 +1,4 @@
-// components/Tables/CashReconciliationTable.tsx - UPDATED
+// components/Tables/CashReconciliationTable.tsx - FIXED
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ interface CashHandover {
   shift: {
     _id: string;
     shiftId: string;
-  };
+  } | null; // Allow shift to be null
   nozzleman: {
     _id: string;
     name: string;
@@ -89,7 +89,9 @@ export const CashReconciliationTable = ({ handovers, onVerify, onReject }: CashR
           ) : (
             handovers.map((handover) => (
               <TableRow key={handover._id}>
-                <TableCell className="font-medium">{handover.shift.shiftId}</TableCell>
+                <TableCell className="font-medium">
+                  {handover.shift?.shiftId || "N/A"} {/* Safe access with fallback */}
+                </TableCell>
                 <TableCell>
                   <div>
                     <div className="font-medium">{handover.nozzleman.name}</div>

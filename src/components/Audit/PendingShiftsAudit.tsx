@@ -82,8 +82,10 @@ export const PendingShiftsAudit = ({ onUpdate }: PendingShiftsAuditProps) => {
         description: "Shift has been approved successfully",
       });
       
-      fetchPendingShifts();
-      onUpdate();
+       fetchPendingShifts();
+    
+    // IMPORTANT: Notify parent to update stats
+    onUpdate();
     } catch (error: any) {
       console.error("❌ Failed to approve shift:", error);
       toast({

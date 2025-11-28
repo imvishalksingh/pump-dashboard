@@ -51,7 +51,7 @@ export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => 
     product: "",
     tank: "",
     dipReading: "",
-    calculatedQuantity: "", // Initialize as string, not undefined
+    calculatedQuantity: "",
     quantity: "",
     reason: "Daily Update",
     adjustmentType: "",
@@ -112,70 +112,67 @@ export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => 
   }, [open, toast]);
 
   // Calculate quantity with PROXY path - FIXED ERROR HANDLING
- // In StockAdjustment.tsx - UPDATE calculateQuantityFromDip with debugging
-const calculateQuantityFromDip = async (dipReading: string) => {
-  if (!tanks || tanks.length === 0 || !formData.tank) {
-    console.log("❌ Missing tanks or tank selection");
-    return;
-  }
-  
-  const dip = parseFloat(dipReading);
-  if (isNaN(dip)) {
-    console.log("❌ Invalid dip reading:", dipReading);
-    return;
-  }
-
-  try {
-    console.log('🔄 Calculating quantity for dip:', dip, 'tank:', formData.tank);
+  const calculateQuantityFromDip = async (dipReading: string) => {
+    if (!tanks || tanks.length === 0 || !formData.tank) {
+      console.log("❌ Missing tanks or tank selection");
+      return;
+    }
     
-    const response = await api.post("/api/tanks/config/calculate", {
-      tankId: formData.tank,
-      dipReading: dip
-    });
-
-    console.log('✅ Calculation API Response:', response.data);
-
-    // Check what's actually being returned
-    const calculatedQuantity = response.data.calculatedQuantity || response.data.volumeLiters;
-    
-    console.log('🔍 Extracted calculatedQuantity:', calculatedQuantity);
-    
-    if (calculatedQuantity === undefined || calculatedQuantity === null) {
-      console.error("❌ No calculated quantity in response:", response.data);
-      toast({
-        title: "Calculation Error",
-        description: "No calculated quantity returned from server",
-        variant: "destructive",
-      });
+    const dip = parseFloat(dipReading);
+    if (isNaN(dip)) {
+      console.log("❌ Invalid dip reading:", dipReading);
       return;
     }
 
-    // Convert to string safely
-    const calculatedQuantityStr = parseFloat(calculatedQuantity).toFixed(2);
-    const quantityStr = parseFloat(calculatedQuantity).toFixed(2);
+    try {
+      console.log('🔄 Calculating quantity for dip:', dip, 'tank:', formData.tank);
+      
+      const response = await api.post("/api/tanks/config/calculate", {
+        tankId: formData.tank,
+        dipReading: dip
+      });
 
-    console.log('📊 Setting form data:', {
-      calculatedQuantity: calculatedQuantityStr,
-      quantity: quantityStr
-    });
+      console.log('✅ Calculation API Response:', response.data);
 
-    setFormData(prev => ({
-      ...prev,
-      calculatedQuantity: calculatedQuantityStr,
-      quantity: quantityStr
-    }));
+      const calculatedQuantity = response.data.calculatedQuantity || response.data.volumeLiters;
+      
+      console.log('🔍 Extracted calculatedQuantity:', calculatedQuantity);
+      
+      if (calculatedQuantity === undefined || calculatedQuantity === null) {
+        console.error("❌ No calculated quantity in response:", response.data);
+        toast({
+          title: "Calculation Error",
+          description: "No calculated quantity returned from server",
+          variant: "destructive",
+        });
+        return;
+      }
 
-  } catch (error: any) {
-    console.error("❌ Error calculating quantity:", error);
-    console.log("Error response:", error.response?.data);
-    
-    toast({
-      title: "Calculation Error",
-      description: error.response?.data?.message || "Failed to calculate quantity",
-      variant: "destructive",
-    });
-  }
-};
+      const calculatedQuantityStr = parseFloat(calculatedQuantity).toFixed(2);
+      const quantityStr = parseFloat(calculatedQuantity).toFixed(2);
+
+      console.log('📊 Setting form data:', {
+        calculatedQuantity: calculatedQuantityStr,
+        quantity: quantityStr
+      });
+
+      setFormData(prev => ({
+        ...prev,
+        calculatedQuantity: calculatedQuantityStr,
+        quantity: quantityStr
+      }));
+
+    } catch (error: any) {
+      console.error("❌ Error calculating quantity:", error);
+      console.log("Error response:", error.response?.data);
+      
+      toast({
+        title: "Calculation Error",
+        description: error.response?.data?.message || "Failed to calculate quantity",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Submit stock adjustment with PROXY path
   const handleSubmit = async (e: React.FormEvent) => {
@@ -197,7 +194,6 @@ const calculateQuantityFromDip = async (dipReading: string) => {
     try {
       console.log('🔄 Submitting stock adjustment via proxy...');
 
-      // SAFELY parse numeric values with defaults
       const payload = {
         tank: formData.tank,
         adjustmentType: adjustmentType,
@@ -262,7 +258,7 @@ const calculateQuantityFromDip = async (dipReading: string) => {
       product: "",
       tank: "",
       dipReading: "",
-      calculatedQuantity: "", // Reset to empty string, not undefined
+      calculatedQuantity: "",
       quantity: "",
       reason: "Daily Update",
       adjustmentType: "",
@@ -270,7 +266,18 @@ const calculateQuantityFromDip = async (dipReading: string) => {
     });
   };
 
+  // FIX: Add safe access to selectedTank with default dimensions
   const selectedTank = tanks?.find(tank => tank._id === formData.tank);
+  
+  // Safe dimensions with defaults
+  const safeDimensions = {
+    height: selectedTank?.dimensions?.height || 0,
+    length: selectedTank?.dimensions?.length || 0,
+    width: selectedTank?.dimensions?.width || 0
+  };
+
+  // Safe dip formula
+  const safeDipFormula = selectedTank?.dipFormula || "Standard Formula";
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -363,10 +370,11 @@ const calculateQuantityFromDip = async (dipReading: string) => {
                   Calculate
                 </Button>
               </div>
+              {/* FIXED: Use safe dimensions and dip formula */}
               {selectedTank && (
                 <p className="text-xs text-muted-foreground">
-                  Tank Height: {selectedTank.dimensions.height}cm | 
-                  Formula: {selectedTank.dipFormula}
+                  Tank Height: {safeDimensions.height}cm | 
+                  Formula: {safeDipFormula}
                 </p>
               )}
             </div>

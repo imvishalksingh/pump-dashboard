@@ -28,6 +28,7 @@ interface Nozzleman {
 
 interface NozzlemanTableProps {
   onEdit: (nozzleman: Nozzleman) => void;
+  onDelete: (nozzlemanId: string) => void;
   refresh?: number;
 }
 
