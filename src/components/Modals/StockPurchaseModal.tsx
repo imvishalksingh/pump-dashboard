@@ -1,4 +1,4 @@
-// components/Modals/StockPurchaseModal.tsx - FIXED SUPPLIER NAME
+// components/Modals/StockPurchaseModal.tsx - COMPLETE VERSION
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -48,7 +48,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
     fuelUnit: "L" as FuelUnit,
     
     // Common fields for all purchase types
-    supplier: "Bharat Petroleum", // Changed to Bharat Petroleum
+    supplier: "Bharat Petroleum",
     invoiceNumber: "",
     invoiceDate: new Date().toISOString().split('T')[0],
     
@@ -217,7 +217,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
     // Validate required fields based on purchase type
     let missingFields: string[] = [];
     
-    const commonFields = ['invoiceNumber', 'invoiceDate']; // Removed supplier from validation since it's fixed
+    const commonFields = ['invoiceNumber', 'invoiceDate'];
     missingFields = commonFields.filter(field => !formData[field as keyof typeof formData]);
 
     if (formData.purchaseType === "fuel") {
@@ -271,7 +271,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
     try {
       let payload: any = {
         purchaseType: formData.purchaseType,
-        supplier: formData.supplier, // This will always be "Bharat Petroleum"
+        supplier: formData.supplier,
         invoiceNumber: formData.invoiceNumber,
         invoiceDate: formData.invoiceDate,
         totalValue: parseFloat(formData.totalValue) || 0
@@ -354,7 +354,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
     setFormData({
       purchaseType: "fuel",
       fuelUnit: "L",
-      supplier: "Bharat Petroleum", // Reset to Bharat Petroleum
+      supplier: "Bharat Petroleum",
       invoiceNumber: "",
       invoiceDate: new Date().toISOString().split('T')[0],
       product: "",
@@ -753,8 +753,309 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
               </>
             )}
 
-            {/* Rest of the code for Lube and Fixed Asset purchases remains the same */}
-            {/* ... */}
+            {/* Lube Purchase Fields */}
+            {formData.purchaseType === "lube" && (
+              <>
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-4">Lube Purchase Details (GST)</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="lubeProductName">Lube Product Name *</Label>
+                    <Input 
+                      id="lubeProductName" 
+                      placeholder="e.g., Engine Oil, Gear Oil, Grease"
+                      value={formData.lubeProductName}
+                      onChange={(e) => handleFieldChange("lubeProductName", e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="purchaseValue">Taxable Value (₹) *</Label>
+                    <Input 
+                      id="purchaseValue" 
+                      type="number"
+                      placeholder="50000"
+                      value={formData.purchaseValue}
+                      onChange={(e) => handleFieldChange("purchaseValue", e.target.value)}
+                      required
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+
+                  {/* Lube Value Breakdown */}
+                  <Card className="mt-4">
+                    <CardContent className="pt-4">
+                      <h4 className="font-semibold mb-3 flex items-center">
+                        <IndianRupee className="h-4 w-4 mr-2" />
+                        Lube Value Breakdown - GST Filing
+                      </h4>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="cgst">CGST (₹)</Label>
+                            <Input 
+                              id="cgst" 
+                              type="number"
+                              placeholder="4500"
+                              value={formData.cgst}
+                              onChange={(e) => handleFieldChange("cgst", e.target.value)}
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="sgst">SGST (₹)</Label>
+                            <Input 
+                              id="sgst" 
+                              type="number"
+                              placeholder="4500"
+                              value={formData.sgst}
+                              onChange={(e) => handleFieldChange("sgst", e.target.value)}
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="igst">IGST (₹)</Label>
+                            <Input 
+                              id="igst" 
+                              type="number"
+                              placeholder="0"
+                              value={formData.igst}
+                              onChange={(e) => handleFieldChange("igst", e.target.value)}
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="discount" className="flex items-center">
+                            <Minus className="h-4 w-4 mr-1 text-red-500" />
+                            Discount (₹)
+                          </Label>
+                          <Input 
+                            id="discount" 
+                            type="number"
+                            placeholder="1000"
+                            value={formData.discount}
+                            onChange={(e) => handleFieldChange("discount", e.target.value)}
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+
+                        <div className="border-t pt-2">
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span>Taxable Value:</span>
+                              <span className="font-medium">{formatCurrency(formData.purchaseValue)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>CGST:</span>
+                              <span className="font-medium">{formatCurrency(formData.cgst)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>SGST:</span>
+                              <span className="font-medium">{formatCurrency(formData.sgst)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>IGST:</span>
+                              <span className="font-medium">{formatCurrency(formData.igst)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-red-500">
+                              <span>Discount:</span>
+                              <span>- {formatCurrency(formData.discount)}</span>
+                            </div>
+                          </div>
+                          <div className="border-t mt-2 pt-2">
+                            <div className="flex justify-between items-center font-semibold text-lg">
+                              <span>Total Value:</span>
+                              <span className="text-green-600">{formatCurrency(formData.totalValue)}</span>
+                            </div>
+                          </div>
+                          <Input 
+                            type="hidden"
+                            value={formData.totalValue}
+                            required
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
+
+            {/* Fixed Asset Purchase Fields */}
+            {formData.purchaseType === "fixed-asset" && (
+              <>
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-4">Fixed Asset Purchase Details (GST)</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="assetName">Asset Name *</Label>
+                      <Input 
+                        id="assetName" 
+                        placeholder="e.g., Air Compressor, Generator"
+                        value={formData.assetName}
+                        onChange={(e) => handleFieldChange("assetName", e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="assetCategory">Asset Category *</Label>
+                      <Select 
+                        value={formData.assetCategory} 
+                        onValueChange={(value) => handleFieldChange("assetCategory", value)}
+                      >
+                        <SelectTrigger id="assetCategory">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="machinery">Machinery</SelectItem>
+                          <SelectItem value="equipment">Equipment</SelectItem>
+                          <SelectItem value="vehicle">Vehicle</SelectItem>
+                          <SelectItem value="furniture">Furniture</SelectItem>
+                          <SelectItem value="computer">Computer Equipment</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="assetDescription">Asset Description</Label>
+                    <Input 
+                      id="assetDescription" 
+                      placeholder="Brief description of the asset"
+                      value={formData.assetDescription}
+                      onChange={(e) => handleFieldChange("assetDescription", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="purchaseValue">Taxable Value (₹) *</Label>
+                    <Input 
+                      id="purchaseValue" 
+                      type="number"
+                      placeholder="100000"
+                      value={formData.purchaseValue}
+                      onChange={(e) => handleFieldChange("purchaseValue", e.target.value)}
+                      required
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+
+                  {/* Fixed Asset Value Breakdown */}
+                  <Card className="mt-4">
+                    <CardContent className="pt-4">
+                      <h4 className="font-semibold mb-3 flex items-center">
+                        <IndianRupee className="h-4 w-4 mr-2" />
+                        Fixed Asset Value Breakdown - GST Filing
+                      </h4>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="cgst">CGST (₹)</Label>
+                            <Input 
+                              id="cgst" 
+                              type="number"
+                              placeholder="9000"
+                              value={formData.cgst}
+                              onChange={(e) => handleFieldChange("cgst", e.target.value)}
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="sgst">SGST (₹)</Label>
+                            <Input 
+                              id="sgst" 
+                              type="number"
+                              placeholder="9000"
+                              value={formData.sgst}
+                              onChange={(e) => handleFieldChange("sgst", e.target.value)}
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="igst">IGST (₹)</Label>
+                            <Input 
+                              id="igst" 
+                              type="number"
+                              placeholder="0"
+                              value={formData.igst}
+                              onChange={(e) => handleFieldChange("igst", e.target.value)}
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="discount" className="flex items-center">
+                            <Minus className="h-4 w-4 mr-1 text-red-500" />
+                            Discount (₹)
+                          </Label>
+                          <Input 
+                            id="discount" 
+                            type="number"
+                            placeholder="5000"
+                            value={formData.discount}
+                            onChange={(e) => handleFieldChange("discount", e.target.value)}
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+
+                        <div className="border-t pt-2">
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span>Taxable Value:</span>
+                              <span className="font-medium">{formatCurrency(formData.purchaseValue)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>CGST:</span>
+                              <span className="font-medium">{formatCurrency(formData.cgst)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>SGST:</span>
+                              <span className="font-medium">{formatCurrency(formData.sgst)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>IGST:</span>
+                              <span className="font-medium">{formatCurrency(formData.igst)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-red-500">
+                              <span>Discount:</span>
+                              <span>- {formatCurrency(formData.discount)}</span>
+                            </div>
+                          </div>
+                          <div className="border-t mt-2 pt-2">
+                            <div className="flex justify-between items-center font-semibold text-lg">
+                              <span>Total Value:</span>
+                              <span className="text-green-600">{formatCurrency(formData.totalValue)}</span>
+                            </div>
+                          </div>
+                          <Input 
+                            type="hidden"
+                            value={formData.totalValue}
+                            required
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
 
             <div className="flex justify-end gap-2 mt-6 border-t pt-4">
               <Button 
