@@ -40,49 +40,63 @@ export const DailyReport = forwardRef<ReportHandle>((props, ref) => {
     fetchDailyReport();
   }, []);
 
-  const fetchDailyReport = async () => {
-    try {
-      setLoading(true);
-      console.log("🔄 Fetching daily report...");
-      
-      const today = new Date().toISOString().split('T')[0];
-      const response = await api.get(`/api/reports/daily?date=${today}`);
-      
-      console.log("📊 Daily report API response:", response.data);
 
-      if (response.data.success) {
-        const { hourlyData, summary: reportSummary } = response.data;
+// In DailyReport.tsx - Update the fetch function to handle the response properly
+const fetchDailyReport = async () => {
+  try {
+    setLoading(true);
+    console.log("🔄 Fetching daily report...");
+    
+    const today = new Date().toISOString().split('T')[0];
+    const response = await api.get(`/api/reports/daily?date=${today}`);
+    
+    console.log("📊 Daily report API response:", response.data);
 
-        setDailyData(hourlyData || []);
-        setSummary({
-          totalSales: reportSummary?.totalSales || 0,
-          totalLiters: reportSummary?.totalLiters || 0,
-          activeTransactions: reportSummary?.activeTransactions || 0,
-          growthPercentage: reportSummary?.growthPercentage || 0
-        });
-        
-        console.log(`✅ Loaded daily report with ${hourlyData?.length || 0} hourly entries`);
-      } else {
-        throw new Error(response.data.message || "Failed to fetch daily report");
-      }
-    } catch (error: any) {
-      console.error("❌ Failed to fetch daily report:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to fetch daily report",
-        variant: "destructive",
-      });
-      setDailyData([]);
+    if (response.data.success) {
+      const { hourlyData, summary: reportSummary, sales, nozzlemanSales } = response.data;
+
+      console.log("📈 Sales data:", sales);
+      console.log("👥 Nozzleman sales:", nozzlemanSales);
+      console.log("⏰ Hourly data:", hourlyData);
+
+      // Use the data from your backend response
+      setDailyData(hourlyData || []);
       setSummary({
-        totalSales: 0,
-        totalLiters: 0,
-        activeTransactions: 0,
-        growthPercentage: 0
+        totalSales: reportSummary?.totalSales || 0,
+        totalLiters: reportSummary?.totalLiters || 0,
+        activeTransactions: reportSummary?.activeTransactions || 0,
+        growthPercentage: reportSummary?.growthPercentage || 0
       });
-    } finally {
-      setLoading(false);
+      
+      // Set nozzleman sales data if available
+      if (nozzlemanSales && nozzlemanSales.length > 0) {
+        // You can use this data to display nozzleman performance
+        console.log(`✅ Found ${nozzlemanSales.length} nozzlemen with sales data`);
+      }
+      
+      console.log(`✅ Loaded daily report with ${hourlyData?.length || 0} hourly entries`);
+    } else {
+      throw new Error(response.data.message || "Failed to fetch daily report");
     }
-  };
+  } catch (error: any) {
+    console.error("❌ Failed to fetch daily report:", error);
+    toast({
+      title: "Error",
+      description: error.response?.data?.message || "Failed to fetch daily report",
+      variant: "destructive",
+    });
+    setDailyData([]);
+    setSummary({
+      totalSales: 0,
+      totalLiters: 0,
+      activeTransactions: 0,
+      growthPercentage: 0
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Define columns for export
   const exportColumns = [

@@ -1,107 +1,89 @@
-// components/Dashboard/ShiftOverview.tsx - UPDATED
+// components/Dashboard/ShiftOverview.tsx
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Clock, Users, CheckCircle, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
-interface Shift {
-  _id: string;
-  shiftId: string;
-  nozzleman: {
-    _id: string;
-    name: string;
-    employeeId: string;
-  } | null;
-  pump: {
-    _id: string;
-    name: string;
-  } | null;
-  nozzle: {
-    _id: string;
-    number: string;
-    fuelType: string;
-  } | null;
-  status: string;
-  fuelDispensed: number;
-  cashCollected: number;
-  startTime: string;
-  endTime?: string;
+interface ShiftStats {
+  active: number;
+  completed: number;
+  pending: number;
+  totalNozzlemen: number;
 }
 
 export const ShiftOverview = () => {
-  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [stats, setStats] = useState<ShiftStats>({
+    active: 0,
+    completed: 0,
+    pending: 0,
+    totalNozzlemen: 0
+  });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchActiveShifts();
+    fetchShiftData();
   }, []);
 
-  const fetchActiveShifts = async () => {
-  try {
-    const response = await api.get("/api/shifts");
-    console.log("All shifts response:", response.data);
+  const fetchShiftData = async () => {
+    try {
+      console.log("🔄 Fetching shift data...");
+      const [shiftStats, shiftsData] = await Promise.all([
+        api.get("/api/shifts/stats").catch(err => {
+          console.warn("Shift stats not available:", err.message);
+          return { data: { activeShifts: 0, pendingApprovals: 0 } };
+        }),
+        api.get("/api/shifts").catch(err => {
+          console.warn("Shifts data not available:", err.message);
+          return { data: { shifts: [] } };
+        })
+      ]);
 
-    // Only ACTIVE shifts
-    const activeShifts = response.data.shifts.filter(
-      (shift: Shift) => shift.status === "Active"
-    );
+      const shiftStatsData = shiftStats.data || {};
+      const shifts = shiftsData.data?.shifts || [];
 
-    console.log("Active nozzlemen shifts:", activeShifts);
-    setShifts(activeShifts);
-  } catch (error: any) {
-    console.error("Failed to fetch shifts:", error);
-    toast({
-      title: "Error",
-      description: "Failed to load shift data",
-      variant: "destructive",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+      // Calculate unique nozzlemen from shifts
+      const uniqueNozzlemen = new Set();
+      shifts.forEach((shift: any) => {
+        if (shift.nozzleman && shift.nozzleman._id) {
+          uniqueNozzlemen.add(shift.nozzleman._id);
+        }
+      });
 
+      setStats({
+        active: shiftStatsData.activeShifts || 0,
+        completed: shifts.filter((s: any) => s.status === 'Approved' || s.status === 'Completed').length,
+        pending: shiftStatsData.pendingApprovals || 0,
+        totalNozzlemen: uniqueNozzlemen.size
+      });
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "Active":
-        return "default";
-      case "Pending Approval":
-        return "secondary";
-      case "Completed":
-        return "outline";
-      default:
-        return "outline";
+      console.log("✅ Shift stats:", stats);
+
+    } catch (error: any) {
+      console.error("❌ Failed to fetch shift data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load shift overview",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
   };
 
   if (loading) {
     return (
       <Card className="p-6">
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-foreground">Shift Overview</h3>
-          <p className="text-sm text-muted-foreground mt-1">Active and pending shifts</p>
-        </div>
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading shift data...</p>
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-muted rounded w-32"></div>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="h-4 bg-muted rounded w-20"></div>
+              <div className="h-6 bg-muted rounded w-8"></div>
+            </div>
+          ))}
         </div>
       </Card>
     );
@@ -109,86 +91,67 @@ export const ShiftOverview = () => {
 
   return (
     <Card className="p-6">
-      <div className="mb-6">
+      <div className="flex items-center gap-2 mb-6">
+        <Clock className="h-5 w-5 text-blue-600" />
         <h3 className="text-lg font-semibold text-foreground">Shift Overview</h3>
-        <p className="text-sm text-muted-foreground mt-1">Active and pending shifts</p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Shift ID</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Nozzleman</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Pump</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Nozzle</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Start Time</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Fuel Dispensed</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Cash Collected</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shifts.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center py-8 text-muted-foreground">
-                  No active shifts found
-                </td>
-              </tr>
-            ) : (
-              shifts.map((shift) => (
-                <tr key={shift._id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
-                  <td className="py-4 px-4 text-sm font-medium text-foreground">
-                    {shift.shiftId}
-                  </td>
-                  <td className="py-4 px-4">
-                    {shift.nozzleman ? (
-                      <div>
-                        <div className="font-medium text-foreground">{shift.nozzleman.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {shift.nozzleman.employeeId}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">Not assigned</span>
-                    )}
-                  </td>
-                  <td className="py-4 px-4 text-sm text-foreground">
-                    {shift.pump?.name || "Unknown Pump"}
-                  </td>
-                  <td className="py-4 px-4">
-                    {shift.nozzle ? (
-                      <div>
-                        <div className="text-foreground">{shift.nozzle.number}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {shift.nozzle.fuelType}
-                        </div>
-                      </div>
-                    ) : (
-                      "Unknown Nozzle"
-                    )}
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="text-sm text-foreground">{formatDate(shift.startTime)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatTime(shift.startTime)}
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 text-sm font-medium text-foreground">
-                    {shift.fuelDispensed > 0 ? `${shift.fuelDispensed.toLocaleString()} L` : "-"}
-                  </td>
-                  <td className="py-4 px-4 text-sm font-medium text-foreground">
-                    {shift.cashCollected > 0 ? `₹${shift.cashCollected.toLocaleString()}` : "-"}
-                  </td>
-                  <td className="py-4 px-4">
-                    <Badge variant={getStatusVariant(shift.status)}>
-                      {shift.status}
-                    </Badge>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Users className="h-4 w-4 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Active Shifts</p>
+              <p className="text-xs text-muted-foreground">Currently working</p>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-lg font-semibold">
+            {stats.active}
+          </Badge>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <CheckCircle className="h-4 w-4 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Completed Today</p>
+              <p className="text-xs text-muted-foreground">Approved shifts</p>
+            </div>
+          </div>
+          <span className="text-lg font-semibold text-foreground">{stats.completed}</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Pending Approval</p>
+              <p className="text-xs text-muted-foreground">Requires review</p>
+            </div>
+          </div>
+          <Badge variant="destructive" className="text-lg font-semibold">
+            {stats.pending}
+          </Badge>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Users className="h-4 w-4 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Total Nozzlemen</p>
+              <p className="text-xs text-muted-foreground">Active today</p>
+            </div>
+          </div>
+          <span className="text-lg font-semibold text-foreground">{stats.totalNozzlemen}</span>
+        </div>
       </div>
     </Card>
   );

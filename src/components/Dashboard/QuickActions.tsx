@@ -1,43 +1,34 @@
+// components/Dashboard/QuickActions.tsx
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, DollarSign, BarChart3, Users, Settings, Package, FileText, TrendingUp } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-
-const actions = [
-  { icon: Plus, label: "Add Pump", description: "Register new fuel pump", route: "/stock" },
-  { icon: DollarSign, label: "Update Price", description: "Change fuel rates", route: "/stock" },
-  { icon: BarChart3, label: "View Reports", description: "Sales & analytics", route: "/reports" },
-  { icon: Users, label: "Manage Users", description: "Staff & permissions", route: "/users" },
-  { icon: Package, label: "Stock Alert", description: "Set inventory levels", route: "/alerts" },
-  { icon: FileText, label: "Generate Invoice", description: "Create bill", route: "/sales" },
-  { icon: TrendingUp, label: "Analytics", description: "Performance metrics", route: "/reports" },
-  { icon: Settings, label: "Settings", description: "System config", route: "/settings" },
-];
+import { Plus, DollarSign, BarChart3, Users } from "lucide-react";
 
 export const QuickActions = () => {
-  const navigate = useNavigate();
+  const actions = [
+    { icon: Plus, label: "Add Pump", href: "/pumps", description: "Register new fuel pump" },
+    { icon: DollarSign, label: "Update Price", href: "/pricing", description: "Change fuel rates" },
+    { icon: BarChart3, label: "View Reports", href: "/reports", description: "Sales & analytics" },
+    { icon: Users, label: "Manage Users", href: "/users", description: "Staff & permissions" },
+  ];
 
   return (
     <Card className="p-6">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-foreground">Quick Actions</h3>
-        <p className="text-sm text-muted-foreground mt-1">Common tasks and shortcuts</p>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <h3 className="text-lg font-semibold text-foreground mb-6">Quick Actions</h3>
+      <div className="grid grid-cols-2 gap-3">
         {actions.map((action, index) => (
           <Button
             key={index}
             variant="outline"
-            onClick={() => navigate(action.route)}
-            className="h-auto flex flex-col items-center justify-center p-4 gap-2 hover:bg-primary/5 hover:border-primary transition-all"
+            className="h-auto p-4 flex flex-col gap-2 hover:shadow-md transition-all text-center"
+            asChild
           >
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <action.icon className="w-5 h-5 text-primary" />
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-medium text-foreground">{action.label}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
-            </div>
+            <a href={action.href}>
+              <action.icon className="h-5 w-5 mx-auto mb-1" />
+              <div>
+                <div className="text-sm font-medium">{action.label}</div>
+                <div className="text-xs text-muted-foreground mt-1">{action.description}</div>
+              </div>
+            </a>
           </Button>
         ))}
       </div>

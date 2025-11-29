@@ -1,4 +1,4 @@
-// pages/SalesManagementPage.tsx - UPDATED VERSION WITHOUT METER READING TAB
+// pages/SalesManagementPage.tsx - COMPLETE UPDATED VERSION WITH TESTING FUEL
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/Shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,8 @@ import {
   Play,
   Square,
   CheckSquare,
-  Zap
+  Zap,
+  TestTube
 } from "lucide-react";
 import { SalesTable } from "@/components/Tables/SalesTable";
 import { useToast } from "@/hooks/use-toast";
@@ -65,6 +66,7 @@ interface Shift {
   startReading: number;
   endReading: number;
   fuelDispensed: number;
+  testingFuel: number; // NEW FIELD
   cashCollected: number;
   phonePeSales: number;
   posSales: number;
@@ -102,6 +104,7 @@ interface NozzlemanSale {
   expenses: number;
   cashDeposit: number;
   fuelDispensed: number;
+  testingFuel: number; // NEW FIELD
   shifts: Shift[];
   sales: any[];
   meterReadings: {
@@ -128,6 +131,7 @@ interface SalesStats {
   totalSales: number;
   totalTransactions: number;
   totalFuelSold: number;
+  totalTestingFuel: number; // NEW FIELD
   averagePrice: number;
   paymentBreakdown: {
     cash: number;
@@ -239,6 +243,7 @@ export const SalesManagementPage = () => {
     totalSales: 0,
     totalTransactions: 0,
     totalFuelSold: 0,
+    totalTestingFuel: 0, // NEW FIELD
     averagePrice: 0,
     paymentBreakdown: {
       cash: 0,
@@ -521,104 +526,115 @@ export const SalesManagementPage = () => {
     }
   };
 
-  const calculateAggregateStats = (shiftsData: Shift[], nozzlemanData: NozzlemanSale[]): SalesStats => {
-    const approvedShifts = shiftsData.filter(shift => shift.status === "Approved");
-    
-    const totalSales = approvedShifts.reduce((sum, shift) => 
-      sum + shift.cashCollected + shift.phonePeSales + shift.posSales + shift.otpSales + shift.creditSales, 0
-    );
-    
-    const totalFuelSold = approvedShifts.reduce((sum, shift) => sum + shift.fuelDispensed, 0);
-    const totalTransactions = approvedShifts.length;
-    const averagePrice = totalFuelSold > 0 ? totalSales / totalFuelSold : 0;
+  // FIXED: Correct meter reading calculations
+const calculateAggregateStats = (shiftsData: Shift[], nozzlemanData: NozzlemanSale[]): SalesStats => {
+  const approvedShifts = shiftsData.filter(shift => shift.status === "Approved");
+  
+  const totalSales = approvedShifts.reduce((sum, shift) => 
+    sum + shift.cashCollected + shift.phonePeSales + shift.posSales + shift.otpSales + shift.creditSales, 0
+  );
+  
+  const totalFuelSold = approvedShifts.reduce((sum, shift) => sum + shift.fuelDispensed, 0);
+  const totalTestingFuel = approvedShifts.reduce((sum, shift) => sum + (shift.testingFuel || 0), 0);
+  const totalTransactions = approvedShifts.length;
+  const averagePrice = totalFuelSold > 0 ? totalSales / totalFuelSold : 0;
 
-    const paymentBreakdown = {
-      cash: approvedShifts.reduce((sum, shift) => sum + shift.cashCollected, 0),
-      upi: approvedShifts.reduce((sum, shift) => sum + shift.phonePeSales, 0),
-      card: approvedShifts.reduce((sum, shift) => sum + shift.posSales, 0),
-      credit: approvedShifts.reduce((sum, shift) => sum + shift.creditSales, 0)
-    };
-
-    const expenses = approvedShifts.reduce((sum, shift) => sum + shift.expenses, 0);
-    const cashDeposit = approvedShifts.reduce((sum, shift) => sum + shift.cashDeposit, 0);
-
-    const meterReadings = {
-      hsd: {
-        opening: nozzlemanData.reduce((sum, nm) => sum + nm.meterReadings.HSD.opening, 0),
-        closing: nozzlemanData.reduce((sum, nm) => sum + nm.meterReadings.HSD.closing, 0),
-        sales: nozzlemanData.reduce((sum, nm) => sum + (nm.meterReadings.HSD.opening - nm.meterReadings.HSD.closing), 0)
-      },
-      petrol: {
-        opening: nozzlemanData.reduce((sum, nm) => sum + nm.meterReadings.Petrol.opening, 0),
-        closing: nozzlemanData.reduce((sum, nm) => sum + nm.meterReadings.Petrol.closing, 0),
-        sales: nozzlemanData.reduce((sum, nm) => sum + (nm.meterReadings.Petrol.opening - nm.meterReadings.Petrol.closing), 0)
-      }
-    };
-
-    const shiftStatus = {
-      active: shiftsData.filter(shift => shift.status === "Active").length,
-      pending: shiftsData.filter(shift => shift.status === "Pending Approval").length,
-      approved: approvedShifts.length,
-      rejected: shiftsData.filter(shift => shift.status === "Rejected").length
-    };
-
-    return {
-      totalSales,
-      totalTransactions,
-      totalFuelSold,
-      averagePrice: parseFloat(averagePrice.toFixed(2)),
-      paymentBreakdown,
-      nozzlemanSales: nozzlemanData,
-      meterReadings,
-      expenses,
-      cashDeposit,
-      shiftStatus
-    };
+  const paymentBreakdown = {
+    cash: approvedShifts.reduce((sum, shift) => sum + shift.cashCollected, 0),
+    upi: approvedShifts.reduce((sum, shift) => sum + shift.phonePeSales, 0),
+    card: approvedShifts.reduce((sum, shift) => sum + shift.posSales, 0),
+    credit: approvedShifts.reduce((sum, shift) => sum + shift.creditSales, 0)
   };
 
-  const calculateNozzlemanStats = (shifts: Shift[]) => {
-    const approvedShifts = shifts.filter(shift => shift.status === "Approved");
-    
-    const totalSales = approvedShifts.reduce((sum, shift) => 
-      sum + shift.cashCollected + shift.phonePeSales + shift.posSales + shift.otpSales + shift.creditSales, 0
-    );
-    
-    const totalFuel = approvedShifts.reduce((sum, shift) => sum + shift.fuelDispensed, 0);
-    const cashSales = approvedShifts.reduce((sum, shift) => sum + shift.cashCollected, 0);
-    const phonePeSales = approvedShifts.reduce((sum, shift) => sum + shift.phonePeSales, 0);
-    const posSales = approvedShifts.reduce((sum, shift) => sum + shift.posSales, 0);
-    const creditSales = approvedShifts.reduce((sum, shift) => sum + shift.creditSales, 0);
-    const expenses = approvedShifts.reduce((sum, shift) => sum + shift.expenses, 0);
-    const cashDeposit = approvedShifts.reduce((sum, shift) => sum + shift.cashDeposit, 0);
-    const cashInHand = cashSales - expenses - cashDeposit;
+  const expenses = approvedShifts.reduce((sum, shift) => sum + shift.expenses, 0);
+  const cashDeposit = approvedShifts.reduce((sum, shift) => sum + shift.cashDeposit, 0);
 
-    const meterReadings = {
-      hsd: {
-        opening: approvedShifts.reduce((sum, shift) => sum + shift.meterReadingHSD.opening, 0),
-        closing: approvedShifts.reduce((sum, shift) => sum + shift.meterReadingHSD.closing, 0),
-        sales: approvedShifts.reduce((sum, shift) => sum + (shift.meterReadingHSD.opening - shift.meterReadingHSD.closing), 0)
-      },
-      petrol: {
-        opening: approvedShifts.reduce((sum, shift) => sum + shift.meterReadingPetrol.opening, 0),
-        closing: approvedShifts.reduce((sum, shift) => sum + shift.meterReadingPetrol.closing, 0),
-        sales: approvedShifts.reduce((sum, shift) => sum + (shift.meterReadingPetrol.opening - shift.meterReadingPetrol.closing), 0)
-      }
-    };
-
-    return {
-      totalSales,
-      totalFuel,
-      cashSales,
-      phonePeSales,
-      posSales,
-      creditSales,
-      expenses,
-      cashDeposit,
-      cashInHand,
-      meterReadings,
-      totalShifts: approvedShifts.length
-    };
+  // FIXED: Correct meter reading calculations
+  const meterReadings = {
+    hsd: {
+      opening: nozzlemanData.reduce((sum, nm) => sum + nm.meterReadings.HSD.opening, 0),
+      closing: nozzlemanData.reduce((sum, nm) => sum + nm.meterReadings.HSD.closing, 0),
+      // CORRECTED: Sales = (Closing - Opening) - Testing Fuel
+      sales: nozzlemanData.reduce((sum, nm) => sum + ((nm.meterReadings.HSD.closing - nm.meterReadings.HSD.opening) - (nm.testingFuel || 0)), 0)
+    },
+    petrol: {
+      opening: nozzlemanData.reduce((sum, nm) => sum + nm.meterReadings.Petrol.opening, 0),
+      closing: nozzlemanData.reduce((sum, nm) => sum + nm.meterReadings.Petrol.closing, 0),
+      // CORRECTED: Sales = (Closing - Opening) - Testing Fuel
+      sales: nozzlemanData.reduce((sum, nm) => sum + ((nm.meterReadings.Petrol.closing - nm.meterReadings.Petrol.opening) - (nm.testingFuel || 0)), 0)
+    }
   };
+
+  const shiftStatus = {
+    active: shiftsData.filter(shift => shift.status === "Active").length,
+    pending: shiftsData.filter(shift => shift.status === "Pending Approval").length,
+    approved: approvedShifts.length,
+    rejected: shiftsData.filter(shift => shift.status === "Rejected").length
+  };
+
+  return {
+    totalSales,
+    totalTransactions,
+    totalFuelSold,
+    totalTestingFuel,
+    averagePrice: parseFloat(averagePrice.toFixed(2)),
+    paymentBreakdown,
+    nozzlemanSales: nozzlemanData,
+    meterReadings,
+    expenses,
+    cashDeposit,
+    shiftStatus
+  };
+};
+
+const calculateNozzlemanStats = (shifts: Shift[]) => {
+  const approvedShifts = shifts.filter(shift => shift.status === "Approved");
+  
+  const totalSales = approvedShifts.reduce((sum, shift) => 
+    sum + shift.cashCollected + shift.phonePeSales + shift.posSales + shift.otpSales + shift.creditSales, 0
+  );
+  
+  const totalFuel = approvedShifts.reduce((sum, shift) => sum + shift.fuelDispensed, 0);
+  const totalTestingFuel = approvedShifts.reduce((sum, shift) => sum + (shift.testingFuel || 0), 0);
+  const cashSales = approvedShifts.reduce((sum, shift) => sum + shift.cashCollected, 0);
+  const phonePeSales = approvedShifts.reduce((sum, shift) => sum + shift.phonePeSales, 0);
+  const posSales = approvedShifts.reduce((sum, shift) => sum + shift.posSales, 0);
+  const creditSales = approvedShifts.reduce((sum, shift) => sum + shift.creditSales, 0);
+  const expenses = approvedShifts.reduce((sum, shift) => sum + shift.expenses, 0);
+  const cashDeposit = approvedShifts.reduce((sum, shift) => sum + shift.cashDeposit, 0);
+  const cashInHand = cashSales - expenses - cashDeposit;
+
+  // FIXED: Correct meter reading calculations
+  const meterReadings = {
+    hsd: {
+      opening: approvedShifts.reduce((sum, shift) => sum + shift.meterReadingHSD.opening, 0),
+      closing: approvedShifts.reduce((sum, shift) => sum + shift.meterReadingHSD.closing, 0),
+      // CORRECTED: Sales = (Closing - Opening) - Testing Fuel
+      sales: approvedShifts.reduce((sum, shift) => sum + ((shift.meterReadingHSD.closing - shift.meterReadingHSD.opening) - (shift.testingFuel || 0)), 0)
+    },
+    petrol: {
+      opening: approvedShifts.reduce((sum, shift) => sum + shift.meterReadingPetrol.opening, 0),
+      closing: approvedShifts.reduce((sum, shift) => sum + shift.meterReadingPetrol.closing, 0),
+      // CORRECTED: Sales = (Closing - Opening) - Testing Fuel
+      sales: approvedShifts.reduce((sum, shift) => sum + ((shift.meterReadingPetrol.closing - shift.meterReadingPetrol.opening) - (shift.testingFuel || 0)), 0)
+    }
+  };
+
+  return {
+    totalSales,
+    totalFuel,
+    totalTestingFuel,
+    cashSales,
+    phonePeSales,
+    posSales,
+    creditSales,
+    expenses,
+    cashDeposit,
+    cashInHand,
+    meterReadings,
+    totalShifts: approvedShifts.length
+  };
+};
 
   const formatNumber = (value: number | null | undefined): string => {
     return (value || 0).toLocaleString();
@@ -991,20 +1007,20 @@ export const SalesManagementPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatNumber(nozzlemanStats.totalFuel)} L</div>
-                  <p className="text-xs text-muted-foreground mt-1">Total fuel sold</p>
+                  <p className="text-xs text-muted-foreground mt-1">Net fuel sold</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Avg. Per Shift</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Testing Fuel</CardTitle>
+                  <TestTube className="h-4 w-4 text-orange-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(nozzlemanStats.totalShifts > 0 ? nozzlemanStats.totalSales / nozzlemanStats.totalShifts : 0)}
+                  <div className="text-2xl font-bold text-orange-600">
+                    {formatNumber(nozzlemanStats.totalTestingFuel)} L
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Average sales</p>
+                  <p className="text-xs text-muted-foreground mt-1">Machine testing</p>
                 </CardContent>
               </Card>
             </div>
@@ -1103,7 +1119,6 @@ export const SalesManagementPage = () => {
               </Card>
             </div>
 
-            {/* METER READINGS SECTION - ONLY IN NOZZLEMAN DETAIL VIEW */}
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -1130,16 +1145,20 @@ export const SalesManagementPage = () => {
                     </div>
                   </div>
                   <div className="p-4 bg-blue-50 rounded-lg border">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-blue-900">HSD Sales:</span>
-                      <span className="font-bold text-blue-700 text-lg">
-                        {formatNumber(nozzlemanStats.meterReadings.hsd.sales)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Next day opening will be: {formatNumber(nozzlemanStats.meterReadings.hsd.closing)}
-                    </p>
-                  </div>
+  <div className="flex justify-between items-center">
+    <span className="font-medium text-blue-900">HSD Sales:</span>
+    <span className="font-bold text-blue-700 text-lg">
+      {formatNumber(nozzlemanStats.meterReadings.hsd.sales)} L
+    </span>
+  </div>
+  <div className="text-xs text-blue-600 mt-1 grid grid-cols-2 gap-2">
+    <div>Gross: {formatNumber(nozzlemanStats.meterReadings.hsd.closing - nozzlemanStats.meterReadings.hsd.opening)} L</div>
+    <div>Testing: {formatNumber(nozzlemanStats.totalTestingFuel)} L</div>
+  </div>
+  <p className="text-xs text-blue-600 mt-1">
+    Next day opening will be: {formatNumber(nozzlemanStats.meterReadings.hsd.closing)}
+  </p>
+</div>
                 </CardContent>
               </Card>
 
@@ -1168,16 +1187,20 @@ export const SalesManagementPage = () => {
                     </div>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg border">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-green-900">Petrol Sales:</span>
-                      <span className="font-bold text-green-700 text-lg">
-                        {formatNumber(nozzlemanStats.meterReadings.petrol.sales)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-green-600 mt-1">
-                      Next day opening will be: {formatNumber(nozzlemanStats.meterReadings.petrol.closing)}
-                    </p>
-                  </div>
+  <div className="flex justify-between items-center">
+    <span className="font-medium text-green-900">Petrol Sales:</span>
+    <span className="font-bold text-green-700 text-lg">
+      {formatNumber(nozzlemanStats.meterReadings.petrol.sales)} L
+    </span>
+  </div>
+  <div className="text-xs text-green-600 mt-1 grid grid-cols-2 gap-2">
+    <div>Gross: {formatNumber(nozzlemanStats.meterReadings.petrol.closing - nozzlemanStats.meterReadings.petrol.opening)} L</div>
+    <div>Testing: {formatNumber(nozzlemanStats.totalTestingFuel)} L</div>
+  </div>
+  <p className="text-xs text-green-600 mt-1">
+    Next day opening will be: {formatNumber(nozzlemanStats.meterReadings.petrol.closing)}
+  </p>
+</div>
                 </CardContent>
               </Card>
             </div>
@@ -1323,7 +1346,6 @@ export const SalesManagementPage = () => {
         </div>
       </div>
 
-      {/* UPDATED TABS - REMOVED METER READING TAB */}
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -1368,13 +1390,15 @@ export const SalesManagementPage = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Rejected</CardTitle>
-                <XCircle className="h-4 w-4 text-red-600" />
+                <CardTitle className="text-sm font-medium">Testing Fuel</CardTitle>
+                <TestTube className="h-4 w-4 text-orange-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{stats.shiftStatus.rejected}</div>
-                <p className="text-xs text-muted-foreground mt-1">Needs correction</p>
-              </CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  {formatNumber(stats.totalTestingFuel)} L
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Machine testing</p>
+                </CardContent>
             </Card>
           </div>
 
@@ -1410,7 +1434,7 @@ export const SalesManagementPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatNumber(stats.totalFuelSold)} L</div>
-                <p className="text-xs text-muted-foreground mt-1">All products</p>
+                <p className="text-xs text-muted-foreground mt-1">Net fuel sold</p>
               </CardContent>
             </Card>
 
@@ -1494,7 +1518,7 @@ export const SalesManagementPage = () => {
                       <div className="text-right">
                         <p className="font-semibold text-lg">{formatCurrency(nozzleman.totalSales)}</p>
                         <p className="text-sm text-muted-foreground">
-                          {nozzleman.shifts.length} shifts • {nozzleman.fuelDispensed}L
+                          {nozzleman.shifts.length} shifts • {nozzleman.fuelDispensed}L net
                         </p>
                       </div>
                     </div>
@@ -1515,6 +1539,17 @@ export const SalesManagementPage = () => {
                       <div className="text-center p-2 rounded border">
                         <p className="text-sm font-medium text-orange-600">Credit</p>
                         <p className="text-lg font-bold">{formatCurrency(nozzleman.creditSales)}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div className="text-center p-2 rounded border border-blue-200 bg-blue-50">
+                        <p className="text-sm font-medium text-blue-600">Net Fuel Sold</p>
+                        <p className="text-lg font-bold">{formatNumber(nozzleman.fuelDispensed)} L</p>
+                      </div>
+                      <div className="text-center p-2 rounded border border-orange-200 bg-orange-50">
+                        <p className="text-sm font-medium text-orange-600">Testing Fuel</p>
+                        <p className="text-lg font-bold">{formatNumber(nozzleman.testingFuel || 0)} L</p>
                       </div>
                     </div>
 

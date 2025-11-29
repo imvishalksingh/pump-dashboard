@@ -1,4 +1,3 @@
-// components/Sales/ManualEntryDialog.tsx - UPDATED
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -39,58 +38,57 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
     notes: ""
   });
 
-  // In ManualEntryDialog.tsx - Update the handleSubmit function
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!formData.nozzlemanId) {
-    toast({
-      title: "Error",
-      description: "Please select a nozzleman",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const payload = {
-      nozzlemanId: formData.nozzlemanId,
-      date: formData.date,
-      cashSales: parseFloat(formData.cashSales) || 0,     // This will map to cashCollected
-      phonePeSales: parseFloat(formData.phonePeSales) || 0,
-      posSales: parseFloat(formData.posSales) || 0,
-      creditSales: parseFloat(formData.creditSales) || 0,
-      expenses: parseFloat(formData.expenses) || 0,
-      cashDeposit: parseFloat(formData.cashDeposit) || 0,
-      fuelDispensed: parseFloat(formData.fuelDispensed) || 0,
-      notes: formData.notes
-    };
-
-    console.log("📤 Sending manual entry data:", payload);
-
-    const response = await api.post("/api/nozzleman-sales/manual-entry", payload);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    toast({
-      title: "Success",
-      description: "Manual entry created successfully",
-    });
+    if (!formData.nozzlemanId) {
+      toast({
+        title: "Error",
+        description: "Please select a nozzleman",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setOpen(false);
-    resetForm();
-    onSuccess();
-    
-  } catch (error: any) {
-    console.error("❌ Error creating manual entry:", error);
-    toast({
-      title: "Error",
-      description: error.response?.data?.message || "Failed to create manual entry",
-      variant: "destructive",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      const payload = {
+        nozzlemanId: formData.nozzlemanId,
+        date: formData.date,
+        cashSales: parseFloat(formData.cashSales) || 0,     // This will map to cashCollected
+        phonePeSales: parseFloat(formData.phonePeSales) || 0,
+        posSales: parseFloat(formData.posSales) || 0,
+        creditSales: parseFloat(formData.creditSales) || 0,
+        expenses: parseFloat(formData.expenses) || 0,
+        cashDeposit: parseFloat(formData.cashDeposit) || 0,
+        fuelDispensed: parseFloat(formData.fuelDispensed) || 0,
+        notes: formData.notes
+      };
+
+      console.log("📤 Sending manual entry data:", payload);
+
+      const response = await api.post("/api/nozzleman-sales/manual-entry", payload);
+      
+      toast({
+        title: "Success",
+        description: "Manual entry created successfully",
+      });
+
+      setOpen(false);
+      resetForm();
+      onSuccess();
+      
+    } catch (error: any) {
+      console.error("❌ Error creating manual entry:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to create manual entry",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const resetForm = () => {
     setFormData({

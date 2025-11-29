@@ -1,18 +1,22 @@
-// components/Dashboard/StockTable.tsx - FIXED WITH KEYS
+// components/Dashboard/StockTable.tsx
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface StockData {
   _id: string;
+  tankName: string;
   product: string;
-  closingStock: number;
-  capacity: number;
+  capacity: string;
+  currentStock: string;
   currentLevel: number;
   alert: boolean;
+  rawCapacity: number;
+  rawCurrentStock: number;
 }
 
 export const StockTable = () => {
@@ -25,35 +29,55 @@ export const StockTable = () => {
   }, []);
 
   const fetchStockData = async () => {
-  try {
-    const response = await api.get("/api/tanks/config");
-    console.log("Stock stats response:", response.data);
+    try {
+      console.log("🔄 Fetching tank configurations...");
+      const response = await api.get("/api/stock/stats");
+      console.log("Stock stats response:", response.data);
 
-    const tanks = response.data.tanks || [];
+      const tanks = response.data.tanks || [];
+      
+      console.log(`📊 Processing ${tanks.length} tanks`);
 
-    const formatted = tanks.map((tank: any) => ({
-      _id: tank._id,
-      product: tank.product,
-      capacity: tank.capacity,
-      closingStock: tank.currentStock,       // ⚠️ FIX: map properly
-      currentLevel: tank.currentLevel,       // already %
-      alert: tank.alert                      // boolean
-    }));
+      const formatted = tanks.map((tank: any) => {
+        // Convert large numbers to readable format (K for thousands)
+        const formatStock = (stock: number) => {
+          if (stock >= 10000) return `${(stock / 1000).toFixed(0)}K`;
+          if (stock >= 1000) return `${(stock / 1000).toFixed(1)}K`;
+          return stock.toString();
+        };
 
-    setStockData(formatted);
-  } catch (error: any) {
-    console.error("Failed to fetch stock data:", error);
-    toast({
-      title: "Error",
-      description: "Failed to load stock data",
-      variant: "destructive",
-    });
-    setStockData([]);
-  } finally {
-    setLoading(false);
-  }
-};
+        const currentStock = tank.currentStock || 0;
+        const capacity = tank.capacity || 1;
+        const currentLevel = tank.currentLevel || Math.round((currentStock / capacity) * 100);
+        
+        return {
+          _id: tank._id || `tank-${Math.random()}`,
+          tankName: tank.tankName || "Unknown Tank",
+          product: tank.product || "Unknown",
+          capacity: formatStock(capacity),
+          currentStock: formatStock(currentStock),
+          currentLevel: currentLevel,
+          alert: tank.alert || currentLevel <= 20,
+          // Keep original values for calculations
+          rawCapacity: capacity,
+          rawCurrentStock: currentStock
+        };
+      });
 
+      console.log("✅ Formatted tank data:", formatted);
+      setStockData(formatted);
+    } catch (error: any) {
+      console.error("❌ Failed to fetch stock data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load stock data",
+        variant: "destructive",
+      });
+      setStockData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusVariant = (alert: boolean, level: number) => {
     if (alert || level < 20) return "destructive";
@@ -64,33 +88,32 @@ export const StockTable = () => {
   const getStatusText = (alert: boolean, level: number) => {
     if (alert || level < 20) return "Low";
     if (level < 50) return "Medium";
-    return "Normal";
+    return "Good";
   };
 
-  const formatNumber = (value: number | null | undefined): string => {
-    if (value === null || value === undefined || isNaN(value)) {
-      return "0";
-    }
-    return value.toLocaleString();
-  };
-
-  const getProgressValue = (level: number | null | undefined): number => {
-    if (level === null || level === undefined || isNaN(level)) {
-      return 0;
-    }
-    return Math.max(0, Math.min(100, level));
+  const getProgressColor = (level: number) => {
+    if (level < 20) return "bg-red-500";
+    if (level < 50) return "bg-yellow-500";
+    return "bg-green-500";
   };
 
   if (loading) {
     return (
       <Card className="p-6">
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-foreground">Stock Summary</h3>
-          <p className="text-sm text-muted-foreground mt-1">Current fuel inventory levels</p>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="h-5 w-5 bg-muted rounded animate-pulse"></div>
+          <div className="h-5 w-32 bg-muted rounded animate-pulse"></div>
         </div>
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading stock data...</p>
+        <div className="space-y-4">
+          {[1, 2].map(i => (
+            <div key={i} className="flex items-center justify-between p-3 border rounded-lg animate-pulse">
+              <div className="space-y-2">
+                <div className="h-4 bg-muted rounded w-20"></div>
+                <div className="h-3 bg-muted rounded w-16"></div>
+              </div>
+              <div className="h-8 w-24 bg-muted rounded"></div>
+            </div>
+          ))}
         </div>
       </Card>
     );
@@ -98,90 +121,51 @@ export const StockTable = () => {
 
   return (
     <Card className="p-6">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-foreground">Stock Summary</h3>
-        <p className="text-sm text-muted-foreground mt-1">Current fuel inventory levels</p>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Product</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Capacity (L)</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Available (L)</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Level</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!stockData || stockData.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-8 text-muted-foreground">
-                  No stock data available
-                </td>
-              </tr>
-            ) : (
-              stockData.map((item) => {
-                const product = item.product || "Unknown";
-                const capacity = item.capacity || 0;
-                const closingStock = item.closingStock || 0;
-                const currentLevel = item.currentLevel || 0;
-                const alert = item.alert || false;
-
-                return (
-                  <tr 
-                    key={item._id} // ✅ ADDED UNIQUE KEY
-                    className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors"
-                  >
-                    <td className="py-4 px-4 text-sm font-medium text-foreground">{product}</td>
-                    <td className="py-4 px-4 text-sm text-muted-foreground">
-                      {formatNumber(capacity)}
-                    </td>
-                    <td className="py-4 px-4 text-sm font-medium text-foreground">
-                      {formatNumber(closingStock)}
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <Progress 
-                          value={getProgressValue(currentLevel)} 
-                          className="w-24 h-2" 
-                        />
-                        <span className="text-sm font-medium text-foreground">
-                          {formatNumber(currentLevel)}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge variant={getStatusVariant(alert, currentLevel)}>
-                        {getStatusText(alert, currentLevel)}
-                      </Badge>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-foreground">Fuel Stock Status</h3>
+        <Badge variant="outline" className="text-xs">
+          {stockData.length} Tanks
+        </Badge>
       </div>
       
-      {stockData && stockData.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-border">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Total Capacity: </span>
-              <span className="font-medium">
-                {formatNumber(stockData.reduce((sum, item) => sum + (item.capacity || 0), 0))} L
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Total Stock: </span>
-              <span className="font-medium">
-                {formatNumber(stockData.reduce((sum, item) => sum + (item.closingStock || 0), 0))} L
-              </span>
-            </div>
+      <div className="space-y-4">
+        {stockData.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No stock data available
           </div>
-        </div>
-      )}
+        ) : (
+          stockData.map((item) => (
+            <div key={item._id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="font-medium text-foreground">{item.tankName}</h4>
+                  {item.alert && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                </div>
+                <p className="text-sm text-muted-foreground">{item.product}</p>
+                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                  <span>Stock: {item.currentStock}L</span>
+                  <span>Capacity: {item.capacity}L</span>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <div className="flex items-center gap-2 mb-2">
+                  <Progress 
+                    value={item.currentLevel} 
+                    className={`w-20 h-2 ${getProgressColor(item.currentLevel)}`}
+                  />
+                  <span className="text-sm font-medium w-12 text-right">
+                    {item.currentLevel}%
+                  </span>
+                </div>
+                <Badge variant={getStatusVariant(item.alert, item.currentLevel)}>
+                  {getStatusText(item.alert, item.currentLevel)}
+                </Badge>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </Card>
   );
 };

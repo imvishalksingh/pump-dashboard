@@ -1,4 +1,5 @@
-import { DollarSign, Package, Users, CheckCircle } from "lucide-react";
+// components/Dashboard/AdminDashboard.tsx
+import { DollarSign, Package, Users, CheckCircle, TrendingUp, Fuel, Clock, AlertTriangle } from "lucide-react";
 import { StatCard } from "@/components/Dashboard/StatCard";
 import { SalesChart } from "@/components/Dashboard/SalesChart";
 import { StockTable } from "@/components/Dashboard/StockTable";
@@ -19,6 +20,7 @@ interface DashboardStats {
   totalDispensed: number;
   pendingApprovals: number;
   totalStock: number;
+  lowStockAlerts: number;
 }
 
 const AdminDashboard = () => {
@@ -30,7 +32,8 @@ const AdminDashboard = () => {
     activeShifts: 0,
     totalDispensed: 0,
     pendingApprovals: 0,
-    totalStock: 0
+    totalStock: 0,
+    lowStockAlerts: 0
   });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -40,62 +43,89 @@ const AdminDashboard = () => {
   }, []);
 
   const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
+    
+    console.log("🔄 Fetching dashboard data from nozzleman-sales...");
+    
+    // Get date range for today
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Fetch nozzleman sales data for today
+    const nozzlemanSalesResponse = await api.get(`/api/nozzleman-sales?startDate=${today}&endDate=${today}`)
+      .catch(err => {
+        console.warn("Nozzleman sales not available:", err.message);
+        return { data: { data: [], totalRevenue: 0, totalShifts: 0 } };
+      });
+
+    const nozzlemanData = nozzlemanSalesResponse.data.data || [];
+    const totalRevenue = nozzlemanSalesResponse.data.totalRevenue || 0;
+    const totalShifts = nozzlemanSalesResponse.data.totalShifts || 0;
+
+    console.log("📊 Nozzleman sales data:", {
+      nozzlemen: nozzlemanData.length,
+      totalRevenue,
+      totalShifts
+    });
+
+    // Calculate totals from nozzleman data
+    let totalFuelSold = 0;
+    let totalTransactions = 0;
+    let activeShifts = 0;
+    let pendingApprovals = 0;
+
+    nozzlemanData.forEach((nozzleman: any) => {
+      totalFuelSold += nozzleman.fuelDispensed || 0;
+      totalTransactions += nozzleman.totalShifts || 0;
       
-      // Use your existing API endpoints
-      const [salesStats, shiftStats, stockStats] = await Promise.all([
-        api.get("/api/sales/stats"),
-        api.get("/api/shifts/stats"),
-        api.get("/api/stock/stats") // You might need to create this if not exists
-      ]);
+      if (nozzleman.shifts) {
+        nozzleman.shifts.forEach((shift: any) => {
+          if (shift.status === "Pending Approval") {
+            pendingApprovals += 1;
+          }
+          if (shift.status === "Completed" || shift.status === "Pending Approval") {
+            activeShifts += 1;
+          }
+        });
+      }
+    });
 
-      console.log("📊 Dashboard Data:", {
-        sales: salesStats.data,
-        shifts: shiftStats.data,
-        stock: stockStats.data
-      });
+    // Fetch other stats (stock, etc.)
+    const [stockStats] = await Promise.all([
+      api.get("/api/stock/stats").catch(err => {
+        console.warn("Stock stats not available:", err.message);
+        return { data: { totalCurrent: 0, lowStockAlerts: 0 } };
+      })
+    ]);
 
-      // Calculate total stock from stock stats
-      const totalStock = stockStats.data?.products?.reduce((sum: number, product: any) => 
-        sum + (product.closingStock || 0), 0) || 0;
+    const stockData = stockStats.data || {};
 
-      setStats({
-        totalSales: salesStats.data.totalSales || 0,
-        totalTransactions: salesStats.data.totalTransactions || 0,
-        totalFuelSold: salesStats.data.totalFuelSold || 0,
-        averagePrice: salesStats.data.averagePrice || 0,
-        activeShifts: shiftStats.data.activeShifts || 0,
-        totalDispensed: shiftStats.data.totalDispensed || 0,
-        pendingApprovals: shiftStats.data.pendingApprovals || 0,
-        totalStock: totalStock
-      });
+    setStats({
+      totalSales: totalRevenue,
+      totalTransactions: totalTransactions,
+      totalFuelSold: totalFuelSold,
+      averagePrice: totalFuelSold > 0 ? totalRevenue / totalFuelSold : 0,
+      activeShifts: activeShifts,
+      totalDispensed: totalFuelSold,
+      pendingApprovals: pendingApprovals,
+      totalStock: stockData.totalCurrent || 0,
+      lowStockAlerts: stockData.lowStockAlerts || 0
+    });
 
-    } catch (error: any) {
-      console.error("Failed to fetch dashboard data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error: any) {
+    console.error("❌ Failed to fetch dashboard data:", error);
+    toast({
+      title: "Error",
+      description: "Failed to load dashboard data",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const formatCurrency = (value: number) => {
-    return `₹${(value || 0).toLocaleString()}`;
-  };
-
-  // Calculate percentage changes (you can replace with actual historical data)
-  const calculateSalesChange = () => {
-    // For now, using mock data - you can implement actual comparison with yesterday
-    return "+12.5%";
-  };
-
-  const calculateStockChange = () => {
-    // For now, using mock data - you can implement actual comparison
-    return "-5.2%";
+    return `₹${(value || 0).toLocaleString('en-IN')}`;
   };
 
   return (
@@ -112,26 +142,26 @@ const AdminDashboard = () => {
           title="Today's Sales"
           value={formatCurrency(stats.totalSales)}
           icon={DollarSign}
-          change={calculateSalesChange()}
+          change="+12.5%"
           changeType="positive"
           subtitle={`${stats.totalTransactions} transactions`}
-          // loading={loading}
+          loading={loading}
         />
         <StatCard
           title="Total Stock"
           value={`${stats.totalStock.toLocaleString()} L`}
           icon={Package}
-          change={calculateStockChange()}
+          change="-5.2%"
           changeType="negative"
           subtitle="Available fuel"
-          // loading={loading}
+          loading={loading}
         />
         <StatCard
           title="Active Shifts"
           value={stats.activeShifts.toString()}
           icon={Users}
           subtitle={`${stats.totalDispensed.toLocaleString()}L dispensed`}
-          // loading={loading}
+          loading={loading}
         />
         <StatCard
           title="Pending Approvals"

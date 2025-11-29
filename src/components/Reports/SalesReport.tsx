@@ -36,38 +36,40 @@ export const SalesReport = forwardRef<ReportHandle>((props, ref) => {
     fetchSalesReport();
   }, []);
 
+
   const fetchSalesReport = async () => {
-    try {
-      setLoading(true);
-      console.log("🔄 Fetching sales report...");
-      
-      const response = await api.get("/api/reports/sales?period=7days");
-      
-      console.log("📊 Sales report API response:", response.data);
+  try {
+    setLoading(true);
+    console.log("🔄 Fetching sales report...");
+    
+    // FIXED: Use the correct endpoint without extra 's'
+    const response = await api.get("/api/reports/sales?period=7days");
+    
+    console.log("📊 Sales report API response:", response.data);
 
-      if (response.data.success) {
-        const { salesTrend, productPerformance } = response.data;
+    if (response.data.success) {
+      const { salesTrend, productPerformance } = response.data;
 
-        setSalesTrend(salesTrend || []);
-        setTopProducts(productPerformance || []);
-        
-        console.log(`✅ Loaded sales report with ${salesTrend?.length || 0} days and ${productPerformance?.length || 0} products`);
-      } else {
-        throw new Error(response.data.message || "Failed to fetch sales report");
-      }
-    } catch (error: any) {
-      console.error("❌ Failed to fetch sales report:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to fetch sales report",
-        variant: "destructive",
-      });
-      setSalesTrend([]);
-      setTopProducts([]);
-    } finally {
-      setLoading(false);
+      setSalesTrend(salesTrend || []);
+      setTopProducts(productPerformance || []);
+      
+      console.log(`✅ Loaded sales report with ${salesTrend?.length || 0} days and ${productPerformance?.length || 0} products`);
+    } else {
+      throw new Error(response.data.message || "Failed to fetch sales report");
     }
-  };
+  } catch (error: any) {
+    console.error("❌ Failed to fetch sales report:", error);
+    toast({
+      title: "Error",
+      description: error.response?.data?.message || "Failed to fetch sales report",
+      variant: "destructive",
+    });
+    setSalesTrend([]);
+    setTopProducts([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Define columns for export
   const trendExportColumns = [

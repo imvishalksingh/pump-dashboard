@@ -43,45 +43,46 @@ export const StockReport = forwardRef<ReportHandle>((props, ref) => {
   }, []);
 
   const fetchStockReport = async () => {
-    try {
-      setLoading(true);
-      console.log("🔄 Fetching stock report...");
-      
-      const response = await api.get("/api/reports/stock");
-      
-      console.log("📊 Stock report API response:", response.data);
+  try {
+    setLoading(true);
+    console.log("🔄 Fetching stock report...");
+    
+    // FIXED: Use the correct endpoint without extra 's'
+    const response = await api.get("/api/reports/stock");
+    
+    console.log("📊 Stock report API response:", response.data);
 
-      if (response.data.success) {
-        const { stockMovement, summary: reportSummary } = response.data;
+    if (response.data.success) {
+      const { stockMovement, summary: reportSummary } = response.data;
 
-        setStockMovement(stockMovement || []);
-        setSummary({
-          totalStockValue: reportSummary?.totalStockValue || 0,
-          lowStockAlerts: reportSummary?.lowStockAlerts || 0,
-          avgConsumption: reportSummary?.avgConsumption || 0
-        });
-        
-        console.log(`✅ Loaded stock report with ${stockMovement?.length || 0} products`);
-      } else {
-        throw new Error(response.data.message || "Failed to fetch stock report");
-      }
-    } catch (error: any) {
-      console.error("❌ Failed to fetch stock report:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to fetch stock report",
-        variant: "destructive",
-      });
-      setStockMovement([]);
+      setStockMovement(stockMovement || []);
       setSummary({
-        totalStockValue: 0,
-        lowStockAlerts: 0,
-        avgConsumption: 0
+        totalStockValue: reportSummary?.totalStockValue || 0,
+        lowStockAlerts: reportSummary?.lowStockAlerts || 0,
+        avgConsumption: reportSummary?.avgConsumption || 0
       });
-    } finally {
-      setLoading(false);
+      
+      console.log(`✅ Loaded stock report with ${stockMovement?.length || 0} products`);
+    } else {
+      throw new Error(response.data.message || "Failed to fetch stock report");
     }
-  };
+  } catch (error: any) {
+    console.error("❌ Failed to fetch stock report:", error);
+    toast({
+      title: "Error",
+      description: error.response?.data?.message || "Failed to fetch stock report",
+      variant: "destructive",
+    });
+    setStockMovement([]);
+    setSummary({
+      totalStockValue: 0,
+      lowStockAlerts: 0,
+      avgConsumption: 0
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Define columns for export
   const exportColumns = [

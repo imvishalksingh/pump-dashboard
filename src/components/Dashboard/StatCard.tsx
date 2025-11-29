@@ -1,4 +1,4 @@
-// components/Dashboard/StatCard.tsx - UPDATED
+// components/Dashboard/StatCard.tsx
 import { Card, CardContent } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,7 @@ interface StatCardProps {
   change?: string;
   changeType?: "positive" | "negative" | "neutral";
   subtitle?: string;
-  loading?: boolean; // Add this line
+  loading?: boolean;
 }
 
 export const StatCard = ({
@@ -20,7 +20,7 @@ export const StatCard = ({
   change,
   changeType = "neutral",
   subtitle,
-  loading = false // Add default value
+  loading = false
 }: StatCardProps) => {
   const changeColors = {
     positive: "text-green-600",
@@ -34,9 +34,9 @@ export const StatCard = ({
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="space-y-2 flex-1">
-              <div className="h-4 bg-muted rounded animate-pulse w-1/2"></div>
-              <div className="h-6 bg-muted rounded animate-pulse w-3/4"></div>
-              <div className="h-3 bg-muted rounded animate-pulse w-2/3"></div>
+              <div className="h-4 bg-muted rounded w-1/2"></div>
+              <div className="h-6 bg-muted rounded w-3/4"></div>
+              <div className="h-3 bg-muted rounded w-2/3"></div>
             </div>
             <div className="h-8 w-8 bg-muted rounded animate-pulse"></div>
           </div>
