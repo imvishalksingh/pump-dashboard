@@ -1,4 +1,4 @@
-// components/Modals/LedgerPaymentModal.tsx - FIXED
+// LedgerPaymentModal.tsx - FIXED WITH SAFE ACCESS
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ interface Customer {
   _id: string;
   name: string;
   mobile: string;
-  balance: number;
+  balance?: number;
+  currentBalance?: number;
   creditLimit: number;
 }
 
@@ -40,7 +41,6 @@ export const LedgerPaymentModal = ({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // Reset form when modal opens/closes
   useEffect(() => {
     if (open) {
       if (customer) {
@@ -70,6 +70,18 @@ export const LedgerPaymentModal = ({
   }, [open, customer, customers]);
 
   const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
+
+  // Safely get customer balance
+  const getCustomerBalance = (customer: Customer | undefined): number => {
+    if (!customer) return 0;
+    return customer.balance || customer.currentBalance || 0;
+  };
+
+  // Safely format number for display
+  const formatNumber = (value: number | undefined): string => {
+    if (value === undefined || value === null) return "0";
+    return value.toLocaleString();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +161,7 @@ export const LedgerPaymentModal = ({
               <SelectContent>
                 {customers.map((customer) => (
                   <SelectItem key={customer._id} value={customer._id}>
-                    {customer.name} ({customer.mobile}) - ₹{customer.balance.toLocaleString()}
+                    {customer.name} ({customer.mobile}) - ₹{formatNumber(getCustomerBalance(customer))}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -172,13 +184,13 @@ export const LedgerPaymentModal = ({
               </div>
               <div>
                 <span className="text-muted-foreground">Outstanding:</span>
-                <div className={`font-medium ${selectedCustomer.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  ₹{selectedCustomer.balance.toLocaleString()}
+                <div className={`font-medium ${getCustomerBalance(selectedCustomer) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  ₹{formatNumber(getCustomerBalance(selectedCustomer))}
                 </div>
               </div>
               <div>
                 <span className="text-muted-foreground">Credit Limit:</span>
-                <div className="font-medium">₹{selectedCustomer.creditLimit.toLocaleString()}</div>
+                <div className="font-medium">₹{formatNumber(selectedCustomer.creditLimit)}</div>
               </div>
             </div>
           </div>
@@ -207,8 +219,8 @@ export const LedgerPaymentModal = ({
             />
             {selectedCustomer && (
               <p className="text-xs text-muted-foreground mt-1">
-                {selectedCustomer.balance > 0 
-                  ? `Outstanding balance: ₹${selectedCustomer.balance.toLocaleString()}`
+                {getCustomerBalance(selectedCustomer) > 0 
+                  ? `Outstanding balance: ₹${formatNumber(getCustomerBalance(selectedCustomer))}`
                   : 'No outstanding balance - recording advance payment'
                 }
               </p>

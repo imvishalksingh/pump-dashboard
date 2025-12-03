@@ -785,7 +785,8 @@ export const SalesManagementEditPage = () => {
         const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
         
         // Check credit limit
-        const newBalance = (selectedCustomer?.balance || 0) + Number(newRecord.amount);
+        const customerBalance = selectedCustomer?.balance || selectedCustomer?.currentBalance || 0;
+const newBalance = customerBalance + Number(newRecord.amount);
         if (newBalance > (selectedCustomer?.creditLimit || 0)) {
           toast({
             title: "Credit Limit Exceeded",
@@ -1837,8 +1838,8 @@ export const SalesManagementEditPage = () => {
                   <SelectContent>
                     {customers.map(customer => (
                       <SelectItem key={customer._id} value={customer._id}>
-                        {customer.name} (₹{customer.balance.toLocaleString()}/₹{customer.creditLimit.toLocaleString()})
-                      </SelectItem>
+  {customer.name} (₹{(customer.balance || 0).toLocaleString()}/₹{(customer.creditLimit || 0).toLocaleString()})
+</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

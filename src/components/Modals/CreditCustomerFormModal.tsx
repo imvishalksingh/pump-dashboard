@@ -59,7 +59,8 @@ export const CreditCustomerFormModal = ({ open, onClose, onSubmit, initialData }
     try {
       await onSubmit({
         ...formData,
-        creditLimit: parseFloat(formData.creditLimit)
+        creditLimit: parseFloat(formData.creditLimit) || 0,
+        balance: 0 // Ensure balance is always set to 0 for new customers
       });
     } finally {
       setLoading(false);
@@ -135,6 +136,8 @@ export const CreditCustomerFormModal = ({ open, onClose, onSubmit, initialData }
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Suspended">Suspended</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
+                <SelectItem value="Blocked">Blocked</SelectItem>
+                <SelectItem value="Under Review">Under Review</SelectItem>
               </SelectContent>
             </Select>
           </div>
