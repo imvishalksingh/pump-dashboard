@@ -1,4 +1,4 @@
-// SalesManagementEditPage.tsx - WITH START NEW SHIFT FEATURE
+// SalesManagementEditPage.tsx - COMPLETE UPDATED WITH SYNC INTEGRATION
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PageHeader } from "@/components/Shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -192,12 +192,21 @@ interface Nozzle {
   currentReading: number;
 }
 
+interface Customer {
+  _id: string;
+  name: string;
+  mobile: string;
+  balance: number;
+  creditLimit: number;
+}
+
 export const SalesManagementEditPage = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [filteredShifts, setFilteredShifts] = useState<Shift[]>([]);
   const [nozzlemen, setNozzlemen] = useState<Nozzleman[]>([]);
   const [pumps, setPumps] = useState<Pump[]>([]);
   const [nozzles, setNozzles] = useState<Nozzle[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
@@ -210,34 +219,36 @@ export const SalesManagementEditPage = () => {
 
   // Calculator states
   const [activeCalculator, setActiveCalculator] = useState<{
-    type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses';
+    type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses' | 'credit';
     shift: Shift;
     field: string;
   } | null>(null);
   
   // Start New Shift Dialog State
   const [startNewShiftDialog, setStartNewShiftDialog] = useState({
-  open: false,
-  nozzleman: null as Nozzleman | null
-});
+    open: false,
+    nozzleman: null as Nozzleman | null
+  });
 
   // New Shift Form State
   const [newShiftForm, setNewShiftForm] = useState({
-  nozzlemanId: "",
-  date: new Date().toISOString().split('T')[0],
-  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  notes: ""
-});
+    nozzlemanId: "",
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    notes: ""
+  });
 
   const [calculatorValue, setCalculatorValue] = useState("");
   const [calculatorRecords, setCalculatorRecords] = useState<any[]>([]);
   const [calculatorTotal, setCalculatorTotal] = useState(0);
+  const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string>("Maintenance");
+  const expenseCategories = ['Maintenance', 'Salary', 'Utilities', 'Supplies', 'Other'];
   const calculatorInputRef = useRef<HTMLDivElement>(null);
   
   // Records dialog states
   const [recordsDialog, setRecordsDialog] = useState<{
     open: boolean;
-    type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses';
+    type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses' | 'credit';
     shift: Shift | null;
   }>({
     open: false,
@@ -248,7 +259,7 @@ export const SalesManagementEditPage = () => {
   // Add record dialog state
   const [addRecordDialog, setAddRecordDialog] = useState<{
     open: boolean;
-    type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses';
+    type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses' | 'credit';
     shift: Shift | null;
   }>({
     open: false,
@@ -275,8 +286,9 @@ export const SalesManagementEditPage = () => {
     receiptNumber: ''
   });
 
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+
   // Keyboard shortcuts for calculator
-// Keyboard shortcuts for calculator - FIXED ENTER KEY
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!activeCalculator) return;
     
@@ -331,7 +343,6 @@ export const SalesManagementEditPage = () => {
         }
         break;
     }
-  // ADD MISSING DEPENDENCIES HERE:
   }, [activeCalculator, calculatorValue, calculatorRecords, calculatorTotal]);
 
   useEffect(() => {
@@ -357,11 +368,12 @@ export const SalesManagementEditPage = () => {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const [shiftsRes, nozzlemenRes, pumpsRes, nozzlesRes] = await Promise.all([
+      const [shiftsRes, nozzlemenRes, pumpsRes, nozzlesRes, customersRes] = await Promise.all([
         api.get("/api/shifts?limit=500"),
         api.get("/api/nozzlemen"),
         api.get("/api/pumps"),
-        api.get("/api/nozzles")
+        api.get("/api/nozzles"),
+        api.get("/api/customers")
       ]);
       
       const shiftsWithRecords = (shiftsRes.data.shifts || []).map((shift: any) => ({
@@ -371,13 +383,15 @@ export const SalesManagementEditPage = () => {
         posRecords: shift.posRecords || [],
         fuelRecords: shift.fuelRecords || [],
         testingRecords: shift.testingRecords || [],
-        expenseRecords: shift.expenseRecords || []
+        expenseRecords: shift.expenseRecords || [],
+        creditRecords: shift.creditRecords || []
       }));
       
       setShifts(shiftsWithRecords);
       setNozzlemen(nozzlemenRes.data || []);
       setPumps(pumpsRes.data || []);
       setNozzles(nozzlesRes.data || []);
+      setCustomers(customersRes.data || []);
     } catch (error: any) {
       console.error("❌ Failed to fetch data:", error);
       toast({
@@ -429,6 +443,7 @@ export const SalesManagementEditPage = () => {
       case 'fuel': return shift.fuelRecords || [];
       case 'testing': return shift.testingRecords || [];
       case 'expenses': return shift.expenseRecords || [];
+      case 'credit': return shift.creditRecords || [];
       default: return [];
     }
   };
@@ -495,7 +510,6 @@ export const SalesManagementEditPage = () => {
     };
   };
 
-  // NEW: Check if nozzleman has active shift
   const hasActiveShift = (nozzlemanId: string) => {
     return shifts.some(shift => 
       shift.nozzleman._id === nozzlemanId && 
@@ -503,7 +517,6 @@ export const SalesManagementEditPage = () => {
     );
   };
 
-  // NEW: Get nozzleman's last shift
   const getLastShift = (nozzlemanId: string) => {
     const nozzlemanShifts = shifts.filter(shift => shift.nozzleman._id === nozzlemanId);
     if (nozzlemanShifts.length === 0) return null;
@@ -516,78 +529,70 @@ export const SalesManagementEditPage = () => {
     return nozzlemanShifts[0];
   };
 
-  // NEW: Open Start New Shift Dialog
   const openStartNewShiftDialog = (nozzleman: Nozzleman) => {
-  setStartNewShiftDialog({
-    open: true,
-    nozzleman
-  });
-  
-  // Only fill required fields
-  setNewShiftForm({
-    nozzlemanId: nozzleman._id,
-    date: new Date().toISOString().split('T')[0],
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    notes: `Shift started by admin for ${nozzleman.name}`
-  });
-};
-
-// In SalesManagementEditPage.tsx - UPDATED
-const startNewShift = async () => {
-  try {
-    setSaving(true);
+    setStartNewShiftDialog({
+      open: true,
+      nozzleman
+    });
     
-    // Prepare data for simple shift start
-    const shiftData = {
-      nozzlemanId: newShiftForm.nozzlemanId,
-      date: newShiftForm.date,
-      startTime: newShiftForm.time,
-      notes: newShiftForm.notes || `Shift started by admin for ${startNewShiftDialog.nozzleman?.name}`,
-      status: "Active",
-      isSimpleStart: true, // NEW FLAG
+    setNewShiftForm({
+      nozzlemanId: nozzleman._id,
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      notes: `Shift started by admin for ${nozzleman.name}`
+    });
+  };
+
+  const startNewShift = async () => {
+    try {
+      setSaving(true);
       
-      // All other fields will default to 0 in backend
-      cashCollected: 0,
-      phonePeSales: 0,
-      posSales: 0,
-      otpSales: 0,
-      creditSales: 0,
-      fuelDispensed: 0,
-      testingFuel: 0,
-      expenses: 0,
-      cashDeposit: 0,
-      cashInHand: 0
-    };
+      const shiftData = {
+        nozzlemanId: newShiftForm.nozzlemanId,
+        date: newShiftForm.date,
+        startTime: newShiftForm.time,
+        notes: newShiftForm.notes || `Shift started by admin for ${startNewShiftDialog.nozzleman?.name}`,
+        status: "Active",
+        isSimpleStart: true,
+        cashCollected: 0,
+        phonePeSales: 0,
+        posSales: 0,
+        otpSales: 0,
+        creditSales: 0,
+        fuelDispensed: 0,
+        testingFuel: 0,
+        expenses: 0,
+        cashDeposit: 0,
+        cashInHand: 0
+      };
 
-    console.log("📤 Starting simple shift with data:", shiftData);
+      console.log("📤 Starting simple shift with data:", shiftData);
 
-    // Use the SAME API endpoint but with isSimpleStart flag
-    const response = await api.post("/api/shifts/manual-entry", shiftData);
-    
-    toast({
-      title: "Success",
-      description: `New shift started for ${startNewShiftDialog.nozzleman?.name}`,
-    });
+      const response = await api.post("/api/shifts/manual-entry", shiftData);
+      
+      toast({
+        title: "Success",
+        description: `New shift started for ${startNewShiftDialog.nozzleman?.name}`,
+      });
 
-    // Refresh data
-    await fetchAllData();
-    setStartNewShiftDialog({ open: false, nozzleman: null });
-    
-  } catch (error: any) {
-    console.error("❌ Failed to start new shift:", error);
-    toast({
-      title: "Error",
-      description: error.response?.data?.error || error.response?.data?.message || "Failed to start new shift",
-      variant: "destructive",
-    });
-  } finally {
-    setSaving(false);
-  }
-};
+      await fetchAllData();
+      setStartNewShiftDialog({ open: false, nozzleman: null });
+      
+    } catch (error: any) {
+      console.error("❌ Failed to start new shift:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || error.response?.data?.message || "Failed to start new shift",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Calculator Functions
   const openCalculator = (
-    type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses', 
+    type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses' | 'credit', 
     shift: Shift, 
     field: string
   ) => {
@@ -620,7 +625,8 @@ const startNewShift = async () => {
         id: Date.now(),
         [isLiters ? 'liters' : 'amount']: parseFloat(calculatorValue),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString()
+        date: new Date().toLocaleDateString(),
+        ...(activeCalculator?.type === 'expenses' ? { category: selectedExpenseCategory } : {})
       };
       
       setCalculatorRecords(prev => [...prev, newRecord]);
@@ -645,30 +651,55 @@ const startNewShift = async () => {
     try {
       setSaving(true);
       
-      const apiRecords = calculatorRecords.map(record => {
-        const { id, ...rest } = record;
-        return rest;
-      });
-      
-      await api.put(
-        `/api/shifts/${activeCalculator.shift._id}/records/bulk`,
-        {
-          type: activeCalculator.type,
-          records: apiRecords,
-          total: calculatorTotal
-        }
-      );
-      
-      toast({
-        title: "Success",
-        description: `${activeCalculator.type.toUpperCase()} records saved successfully`,
-      });
+      // If it's expenses, we sync them one by one to the Expense collection
+      if (activeCalculator.type === 'expenses') {
+         if (calculatorRecords.length === 0) return;
+
+         const syncPromises = calculatorRecords.map(record => {
+           return api.post('/api/expenses/sync', {
+             shiftId: activeCalculator.shift._id,
+             amount: record.amount,
+             category: selectedExpenseCategory,
+             description: `Shift expense: ${record.time}`,
+             date: new Date().toISOString(),
+             nozzlemanId: activeCalculator.shift.nozzleman._id,
+             shiftReference: activeCalculator.shift.shiftId
+           });
+         });
+
+         await Promise.all(syncPromises);
+         toast({ 
+           title: "Success", 
+           description: `${calculatorRecords.length} expense(s) synced successfully to Expense System` 
+         });
+
+      } else {
+        // For other types (fuel, testing, etc.), keep existing behavior (bulk update shift)
+        const apiRecords = calculatorRecords.map(record => {
+          const { id, ...rest } = record;
+          return rest;
+        });
+        
+        await api.put(
+          `/api/shifts/${activeCalculator.shift._id}/records/bulk`,
+          {
+            type: activeCalculator.type,
+            records: apiRecords,
+            total: calculatorTotal
+          }
+        );
+        toast({ 
+          title: "Success", 
+          description: `${activeCalculator.type.toUpperCase()} records saved to shift` 
+        });
+      }
       
       await fetchAllData();
       setActiveCalculator(null);
+      setSelectedExpenseCategory("Maintenance");
       
     } catch (error: any) {
-      console.error("❌ Failed to save calculator records:", error);
+      console.error("❌ Failed to save records:", error);
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to save records",
@@ -686,7 +717,7 @@ const startNewShift = async () => {
   };
 
   // Records Dialog Functions
-  const openRecordsDialog = (type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses', shift: Shift) => {
+  const openRecordsDialog = (type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses' | 'credit', shift: Shift) => {
     setRecordsDialog({
       open: true,
       type,
@@ -694,7 +725,7 @@ const startNewShift = async () => {
     });
   };
 
-  const openAddRecordDialog = (type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses', shift: Shift | null) => {
+  const openAddRecordDialog = (type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses' | 'credit', shift: Shift | null) => {
     if (!shift) {
       toast({
         title: "Error",
@@ -709,6 +740,8 @@ const startNewShift = async () => {
       type,
       shift
     });
+    
+    setSelectedCustomerId("");
     
     const defaults: any = {
       amount: 0,
@@ -735,31 +768,79 @@ const startNewShift = async () => {
     if (!addRecordDialog.shift) return;
 
     try {
-      const recordData = {
-        type: addRecordDialog.type,
-        ...newRecord
-      };
+      setSaving(true);
 
-      await api.post(
-        `/api/shifts/${addRecordDialog.shift._id}/records`,
-        recordData
-      );
-      
-      toast({
-        title: "Success",
-        description: "Record added successfully",
-      });
+      // If Credit Sale, sync to Customer Ledger
+      if (addRecordDialog.type === 'credit') {
+        if (!selectedCustomerId || newRecord.amount <= 0) {
+           toast({ 
+             title: "Error", 
+             description: "Please select a customer and enter valid amount", 
+             variant: "destructive"
+           });
+           setSaving(false);
+           return;
+        }
+
+        const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
+        
+        // Check credit limit
+        const newBalance = (selectedCustomer?.balance || 0) + Number(newRecord.amount);
+        if (newBalance > (selectedCustomer?.creditLimit || 0)) {
+          toast({
+            title: "Credit Limit Exceeded",
+            description: `Customer ${selectedCustomer?.name} would exceed credit limit. Current: ${selectedCustomer?.balance}, Limit: ${selectedCustomer?.creditLimit}`,
+            variant: "destructive",
+          });
+          setSaving(false);
+          return;
+        }
+
+        const response = await api.post('/api/customers/sync-sale', {
+          shiftId: addRecordDialog.shift._id,
+          customerId: selectedCustomerId,
+          amount: newRecord.amount,
+          date: new Date().toISOString(),
+          vehicleNumber: newRecord.vehicleNumber,
+          notes: newRecord.notes || `Credit sale from shift ${addRecordDialog.shift.shiftId}`
+        });
+        
+        toast({ 
+          title: "✅ Success", 
+          description: `Credit sale of ₹${newRecord.amount} synced to ${selectedCustomer?.name}'s ledger` 
+        });
+
+      } else if (addRecordDialog.type === 'expenses') {
+        // For expenses from add dialog
+        await api.post('/api/expenses/sync', {
+          shiftId: addRecordDialog.shift._id,
+          amount: newRecord.amount,
+          category: newRecord.category || 'Other',
+          description: newRecord.notes || `Expense from shift`,
+          date: new Date().toISOString(),
+          nozzlemanId: addRecordDialog.shift.nozzleman._id,
+          shiftReference: addRecordDialog.shift.shiftId
+        });
+        
+        toast({ 
+          title: "Success", 
+          description: "Expense synced successfully to Expense System" 
+        });
+      }
 
       await fetchAllData();
       setAddRecordDialog({ open: false, type: 'cash', shift: null });
+      setSelectedCustomerId("");
       
     } catch (error: any) {
       console.error("❌ Failed to add record:", error);
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to add record",
+        description: error.response?.data?.message || "Failed to sync record",
         variant: "destructive",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -898,88 +979,87 @@ const startNewShift = async () => {
     }
   };
 
-const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman, isSelected: boolean }) => {
-  const stats = getNozzlemanStats(nozzleman._id);
-  const hasActive = hasActiveShift(nozzleman._id);
-  const lastShift = getLastShift(nozzleman._id);
-  
-  return (
-    <Card 
-      className={`cursor-pointer transition-all ${isSelected ? 'border-2 border-blue-500 shadow-md' : 'hover:shadow-sm'} relative`}
-      onClick={() => setNozzlemanFilter(nozzleman._id)}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-full ${isSelected ? 'bg-blue-100' : 'bg-gray-100'}`}>
-            <User className={`h-6 w-6 ${isSelected ? 'text-blue-600' : 'text-gray-600'}`} />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold">{nozzleman.name}</h3>
-                <p className="text-sm text-muted-foreground">{nozzleman.employeeId}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {hasActive && (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    <Power className="h-3 w-3 mr-1" />
-                    Active
-                  </Badge>
-                )}
-                {isSelected && (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                    Selected
-                  </Badge>
-                )}
-              </div>
+  const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman, isSelected: boolean }) => {
+    const stats = getNozzlemanStats(nozzleman._id);
+    const hasActive = hasActiveShift(nozzleman._id);
+    const lastShift = getLastShift(nozzleman._id);
+    
+    return (
+      <Card 
+        className={`cursor-pointer transition-all ${isSelected ? 'border-2 border-blue-500 shadow-md' : 'hover:shadow-sm'} relative`}
+        onClick={() => setNozzlemanFilter(nozzleman._id)}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className={`p-2 rounded-full ${isSelected ? 'bg-blue-100' : 'bg-gray-100'}`}>
+              <User className={`h-6 w-6 ${isSelected ? 'text-blue-600' : 'text-gray-600'}`} />
             </div>
-            
-            {/* Simple Stats */}
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              <div className="text-center">
-                <p className="text-lg font-bold text-green-600">₹{stats.totalSales.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Total Sales</p>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">{nozzleman.name}</h3>
+                  <p className="text-sm text-muted-foreground">{nozzleman.employeeId}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {hasActive && (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      <Power className="h-3 w-3 mr-1" />
+                      Active
+                    </Badge>
+                  )}
+                  {isSelected && (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      Selected
+                    </Badge>
+                  )}
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-blue-600">{stats.netFuel.toLocaleString()}L</p>
-                <p className="text-xs text-muted-foreground">Net Fuel</p>
+              
+              {/* Simple Stats */}
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-green-600">₹{stats.totalSales.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Total Sales</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-blue-600">{stats.netFuel.toLocaleString()}L</p>
+                  <p className="text-xs text-muted-foreground">Net Fuel</p>
+                </div>
               </div>
+              
+              {lastShift && (
+                <div className="mt-2 text-xs text-gray-500">
+                  Last shift: {format(parseISO(lastShift.startTime), 'MMM dd')} • {lastShift.status}
+                </div>
+              )}
             </div>
-            
-            {lastShift && (
-              <div className="mt-2 text-xs text-gray-500">
-                Last shift: {format(parseISO(lastShift.startTime), 'MMM dd')} • {lastShift.status}
-              </div>
-            )}
           </div>
-        </div>
-        
-        {/* Start New Shift Button - Simple */}
-        {isSelected && !hasActive && (
-          <div className="mt-3 pt-3 border-t">
-            <Button
-              variant="default"
-              size="sm"
-              className="w-full bg-green-600 hover:bg-green-700"
-              onClick={(e) => {
-                e.stopPropagation();
-                openStartNewShiftDialog(nozzleman);
-              }}
-            >
-              <PlayCircle className="h-4 w-4 mr-2" />
-              Start New Shift
-            </Button>
-            <p className="text-xs text-gray-500 text-center mt-1">
-              Admin can start shift for this nozzleman
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
+          
+          {/* Start New Shift Button - Simple */}
+          {isSelected && !hasActive && (
+            <div className="mt-3 pt-3 border-t">
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full bg-green-600 hover:bg-green-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openStartNewShiftDialog(nozzleman);
+                }}
+              >
+                <PlayCircle className="h-4 w-4 mr-2" />
+                Start New Shift
+              </Button>
+              <p className="text-xs text-gray-500 text-center mt-1">
+                Admin can start shift for this nozzleman
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
 
-  // Hierarchical Display Components (same as before, shortened for brevity)
   const Level1FuelSales = ({ shift }: { shift: Shift }) => {
     const isHSD = shift.pump.fuelType === 'Diesel' || shift.pump.fuelType === 'HSD';
     const isPetrol = shift.pump.fuelType === 'Petrol';
@@ -1102,14 +1182,16 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
       type,
       color = "green",
       icon = DollarSign,
-      showCalculator = true
+      showCalculator = true,
+      showRecords = true
     }: {
       title: string;
       value: number;
-      type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses';
+      type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses' | 'credit';
       color?: string;
       icon?: any;
       showCalculator?: boolean;
+      showRecords?: boolean;
     }) => {
       const Icon = icon;
       const isLiters = type === 'fuel' || type === 'testing';
@@ -1120,7 +1202,8 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
         purple: "bg-purple-50 border-purple-200 hover:bg-purple-100",
         orange: "bg-orange-50 border-orange-200 hover:bg-orange-100",
         red: "bg-red-50 border-red-200 hover:bg-red-100",
-        gray: "bg-gray-50 border-gray-200 hover:bg-gray-100"
+        gray: "bg-gray-50 border-gray-200 hover:bg-gray-100",
+        indigo: "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
       };
 
       const textColors: Record<string, string> = {
@@ -1129,18 +1212,27 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
         purple: "text-purple-700",
         orange: "text-orange-700",
         red: "text-red-700",
-        gray: "text-gray-700"
+        gray: "text-gray-700",
+        indigo: "text-indigo-700"
       };
 
       return (
         <Card 
           className={`cursor-pointer transition-all ${colorClasses[color]} border`}
-          onClick={() => showCalculator && openCalculator(type, shift, 
-            type === 'cash' ? 'cashCollected' : 
-            type === 'phonepe' ? 'phonePeSales' : 
-            type === 'pos' ? 'posSales' :
-            type === 'fuel' ? 'fuelDispensed' :
-            type === 'testing' ? 'testingFuel' : 'expenses')}
+          onClick={() => {
+            if (showCalculator) {
+              if (type === 'credit') {
+                openAddRecordDialog('credit', shift);
+              } else {
+                openCalculator(type, shift, 
+                  type === 'cash' ? 'cashCollected' : 
+                  type === 'phonepe' ? 'phonePeSales' : 
+                  type === 'pos' ? 'posSales' :
+                  type === 'fuel' ? 'fuelDispensed' :
+                  type === 'testing' ? 'testingFuel' : 'expenses');
+              }
+            }
+          }}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -1148,20 +1240,22 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
                 <Icon className={`h-4 w-4 ${textColors[color]}`} />
                 <Label className={`font-medium ${textColors[color]}`}>{title}</Label>
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openRecordsDialog(type, shift);
-                  }}
-                  title="View Records"
-                >
-                  <List className="h-3 w-3" />
-                </Button>
-              </div>
+              {showRecords && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openRecordsDialog(type, shift);
+                    }}
+                    title="View Records"
+                  >
+                    <List className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
             </div>
             <div className={`text-2xl font-bold ${textColors[color]}`}>
               {isLiters ? `${value.toLocaleString()}L` : `₹${value.toLocaleString()}`}
@@ -1172,7 +1266,8 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
                type === 'pos' ? 'Card payments' :
                type === 'fuel' ? 'Total fuel dispensed' :
                type === 'testing' ? 'Fuel used for testing' :
-               type === 'expenses' ? 'Daily expenses' : ''}
+               type === 'expenses' ? 'Daily expenses' :
+               type === 'credit' ? 'Credit accounts - Click to add sale' : ''}
             </div>
           </CardContent>
         </Card>
@@ -1210,21 +1305,15 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
             icon={CreditCard}
           />
           
-          <Card className="bg-indigo-50 border-indigo-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Circle className="h-4 w-4 fill-indigo-500 text-indigo-500" />
-                  <Label className="font-medium text-indigo-700">Credit Sales</Label>
-                </div>
-                <div className="text-xs text-gray-500">No calculator</div>
-              </div>
-              <div className="text-2xl font-bold text-indigo-700">
-                ₹{shift.creditSales.toLocaleString()}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Credit accounts</div>
-            </CardContent>
-          </Card>
+          <PaymentCard
+            title="Credit Sales"
+            value={shift.creditSales}
+            type="credit"
+            color="indigo"
+            icon={Circle}
+            showCalculator={true}
+            showRecords={false}
+          />
         </div>
       </div>
     );
@@ -1542,25 +1631,72 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
         </CardContent>
       </Card>
 
-{/* // Updated Dialog with Minimal Fields */}
-<Dialog open={startNewShiftDialog.open} onOpenChange={(open) => setStartNewShiftDialog({...startNewShiftDialog, open})}>
-  <DialogContent className="max-w-md">
-    <DialogHeader>
-      <DialogTitle className="flex items-center gap-2">
-        <PlayCircle className="h-5 w-5 text-green-600" />
-        Start New Shift
-      </DialogTitle>
-      <DialogDescription>
-        Start a new shift for {startNewShiftDialog.nozzleman?.name}
-      </DialogDescription>
-      <h1>Implementing soon...</h1>
-    </DialogHeader>
+      {/* Start New Shift Dialog */}
+      <Dialog open={startNewShiftDialog.open} onOpenChange={(open) => setStartNewShiftDialog({...startNewShiftDialog, open})}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PlayCircle className="h-5 w-5 text-green-600" />
+              Start New Shift
+            </DialogTitle>
+            <DialogDescription>
+              Start a new shift for {startNewShiftDialog.nozzleman?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>Nozzleman</Label>
+              <div className="p-2 bg-gray-100 rounded-md">
+                {startNewShiftDialog.nozzleman?.name} ({startNewShiftDialog.nozzleman?.employeeId})
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-shift-date">Date</Label>
+                <Input
+                  id="new-shift-date"
+                  type="date"
+                  value={newShiftForm.date}
+                  onChange={(e) => setNewShiftForm({...newShiftForm, date: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-shift-time">Start Time</Label>
+                <Input
+                  id="new-shift-time"
+                  type="time"
+                  value={newShiftForm.time}
+                  onChange={(e) => setNewShiftForm({...newShiftForm, time: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="new-shift-notes">Notes (Optional)</Label>
+              <Textarea
+                id="new-shift-notes"
+                value={newShiftForm.notes}
+                onChange={(e) => setNewShiftForm({...newShiftForm, notes: e.target.value})}
+                placeholder="Any special instructions..."
+                rows={2}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStartNewShiftDialog({ open: false, nozzleman: null })}>
+              Cancel
+            </Button>
+            <Button onClick={startNewShift} disabled={saving}>
+              {saving ? "Starting..." : "Start Shift"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-    
-  </DialogContent>
-</Dialog>
-
-      {/* Calculator Dialog (simplified version) */}
+      {/* Calculator Dialog */}
       <Dialog open={!!activeCalculator} onOpenChange={() => setActiveCalculator(null)}>
         <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
@@ -1571,6 +1707,23 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Category Select for Expenses */}
+            {activeCalculator?.type === 'expenses' && (
+              <div className="space-y-1">
+                <Label>Expense Category</Label>
+                <Select value={selectedExpenseCategory} onValueChange={setSelectedExpenseCategory}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expenseCategories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div 
               ref={calculatorInputRef}
               tabIndex={0}
@@ -1626,6 +1779,7 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
                         <span className="font-medium">
                           {activeCalculator?.type === 'fuel' || activeCalculator?.type === 'testing' ? 
                             `${record.liters}L` : `₹${record.amount}`}
+                          {record.category && ` (${record.category})`}
                         </span>
                       </div>
                       <Button
@@ -1646,7 +1800,7 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
               variant="default"
               className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-lg"
               onClick={() => handleCalculatorInput('save')}
-              disabled={saving}
+              disabled={saving || (activeCalculator?.type === 'expenses' && !selectedExpenseCategory)}
             >
               {saving ? (
                 <>
@@ -1656,7 +1810,7 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
               ) : (
                 <>
                   <Save className="h-5 w-5 mr-2" />
-                  Save & Close
+                  {activeCalculator?.type === 'expenses' ? 'Sync to Expense System' : 'Save & Close'}
                 </>
               )}
             </Button>
@@ -1664,8 +1818,116 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
         </DialogContent>
       </Dialog>
 
+      {/* Add Single Record Dialog */}
+      <Dialog open={addRecordDialog.open} onOpenChange={(open) => setAddRecordDialog({...addRecordDialog, open})}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add {addRecordDialog.type.toUpperCase()} Record</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Customer Select for Credit Sales */}
+            {addRecordDialog.type === 'credit' && (
+              <div className="space-y-2">
+                <Label>Select Customer *</Label>
+                <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map(customer => (
+                      <SelectItem key={customer._id} value={customer._id}>
+                        {customer.name} (₹{customer.balance.toLocaleString()}/₹{customer.creditLimit.toLocaleString()})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedCustomerId && (
+                  <div className="text-xs text-gray-500">
+                    Selected: {customers.find(c => c._id === selectedCustomerId)?.name}
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* Records View Dialog */}
+            {/* Category Select for Expenses */}
+            {addRecordDialog.type === 'expenses' && (
+              <div className="space-y-2">
+                <Label>Expense Category *</Label>
+                <Select 
+                  value={newRecord.category} 
+                  onValueChange={(value) => setNewRecord({...newRecord, category: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expenseCategories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <div className="space-y-2 flex-1">
+                <Label>Amount (₹) *</Label>
+                <Input 
+                  type="number" 
+                  value={newRecord.amount || ''} 
+                  onChange={e => setNewRecord({...newRecord, amount: parseFloat(e.target.value) || 0})}
+                  min="1"
+                  step="0.01"
+                />
+              </div>
+              <div className="space-y-2 flex-1">
+                <Label>Time</Label>
+                <Input 
+                  type="time" 
+                  value={newRecord.time} 
+                  onChange={e => setNewRecord({...newRecord, time: e.target.value})}
+                />
+              </div>
+            </div>
+
+            {addRecordDialog.type === 'credit' && (
+              <div className="space-y-2">
+                <Label>Vehicle Number (Optional)</Label>
+                <Input 
+                  value={newRecord.vehicleNumber} 
+                  onChange={e => setNewRecord({...newRecord, vehicleNumber: e.target.value})}
+                  placeholder="MH12AB1234"
+                />
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Input 
+                value={newRecord.notes} 
+                onChange={e => setNewRecord({...newRecord, notes: e.target.value})}
+                placeholder="Add description or reference..."
+              />
+            </div>
+
+            <Button 
+              className="w-full" 
+              onClick={saveNewRecord}
+              disabled={saving || 
+                !newRecord.amount || 
+                newRecord.amount <= 0 ||
+                (addRecordDialog.type === 'credit' && !selectedCustomerId) ||
+                (addRecordDialog.type === 'expenses' && !newRecord.category)
+              }
+            >
+              {saving ? "Syncing..." : `Sync to ${addRecordDialog.type === 'credit' ? 'Customer Ledger' : 'Expense System'}`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Records View Dialog */}
       <Dialog open={recordsDialog.open} onOpenChange={(open) => setRecordsDialog({...recordsDialog, open})}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -1815,7 +2077,6 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
           </div>
         </DialogContent>
       </Dialog>
-
 
       {/* Shifts List */}
       <div className="space-y-6">
