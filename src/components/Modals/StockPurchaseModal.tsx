@@ -1,4 +1,4 @@
-// components/Modals/StockPurchaseModal.tsx - COMPLETE VERSION
+// components/Modals/StockPurchaseModal.tsx - COMPLETE FIXED VERSION
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { IndianRupee, Calculator, Minus, RefreshCw } from "lucide-react";
+import { IndianRupee, Calculator, Minus, RefreshCw, Check, Droplet, Package, Building } from "lucide-react";
 import api from "@/utils/api";
 
 interface TankConfig {
@@ -26,18 +26,26 @@ interface TankConfig {
   tankName: string;
   product: string;
   capacity: number;
+  currentStock?: number;
+  currentLevel?: number;
 }
 
 interface StockPurchaseModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPurchaseAdded: () => void;
+  selectedTank?: TankConfig | null;
 }
 
 type PurchaseType = "fuel" | "lube" | "fixed-asset";
 type FuelUnit = "L" | "KL";
 
-export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: StockPurchaseModalProps) => {
+export const StockPurchaseModal = ({ 
+  open, 
+  onOpenChange, 
+  onPurchaseAdded,
+  selectedTank = null 
+}: StockPurchaseModalProps) => {
   const [loading, setLoading] = useState(false);
   const [tanks, setTanks] = useState<TankConfig[]>([]);
   const [fetchingTanks, setFetchingTanks] = useState(false);
@@ -72,12 +80,51 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
     
     // Lube Purchase additional fields
     lubeProductName: "",
+    lubeQuantity: "",
+    lubeUnit: "L",
+    lubeRate: "",
     
     // Fixed Asset Purchase fields
     assetName: "",
     assetCategory: "",
-    assetDescription: ""
+    assetDescription: "",
+    assetQuantity: "1",
+    assetRate: ""
   });
+
+  // ✅ FIXED: Auto-populate selected tank when modal opens
+  useEffect(() => {
+    if (open) {
+      if (selectedTank) {
+        setFormData(prev => ({
+          ...prev,
+          tank: selectedTank._id,
+          product: selectedTank.product,
+          purchaseType: "fuel" // Auto-set to fuel purchase for tank
+        }));
+      } else {
+        // Reset form if no selected tank
+        resetForm();
+      }
+    }
+  }, [open, selectedTank]);
+
+  // Calculate totals whenever relevant fields change
+  useEffect(() => {
+    calculateTotals();
+  }, [
+    formData.purchaseValue,
+    formData.vat,
+    formData.cgst,
+    formData.sgst,
+    formData.igst,
+    formData.otherCharges,
+    formData.discount,
+    formData.lubeQuantity,
+    formData.lubeRate,
+    formData.assetQuantity,
+    formData.assetRate
+  ]);
 
   // Fetch tank configurations
   useEffect(() => {
@@ -101,44 +148,34 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
 
     if (open) {
       fetchTankConfigs();
-      resetForm();
     }
   }, [open, toast]);
 
-  // Calculate totals only for tax fields, not for the main calculation fields
-  useEffect(() => {
-    calculateTotals();
-  }, [
-    formData.purchaseValue,
-    formData.vat,
-    formData.cgst,
-    formData.sgst,
-    formData.igst,
-    formData.otherCharges,
-    formData.discount
-  ]);
-
-  // Convert quantity based on unit
-  const getQuantityInLiters = (quantity: string): number => {
+  // ✅ FIXED: Convert quantity based on unit
+  const getQuantityInLiters = (quantity: string, unit: string = "L"): number => {
     const qty = parseFloat(quantity) || 0;
-    return formData.fuelUnit === "KL" ? qty * 1000 : qty;
+    return unit === "KL" ? qty * 1000 : qty;
   };
 
-  const getDisplayQuantity = (liters: number): string => {
-    if (formData.fuelUnit === "KL") {
+  const getDisplayQuantity = (liters: number, unit: string = "L"): string => {
+    if (unit === "KL") {
       return (liters / 1000).toFixed(3);
     }
     return liters.toString();
   };
 
+  // ✅ FIXED: Calculate totals based on purchase type
   const calculateTotals = () => {
     if (formData.purchaseType === "fuel") {
       calculateFuelTotals();
-    } else if (formData.purchaseType === "lube" || formData.purchaseType === "fixed-asset") {
-      calculateGSTTotals();
+    } else if (formData.purchaseType === "lube") {
+      calculateLubeTotals();
+    } else if (formData.purchaseType === "fixed-asset") {
+      calculateFixedAssetTotals();
     }
   };
 
+  // ✅ FIXED: Fuel totals calculation
   const calculateFuelTotals = () => {
     const purchaseValue = parseFloat(formData.purchaseValue) || 0;
     const vat = parseFloat(formData.vat) || 0;
@@ -147,21 +184,48 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
 
     setFormData(prev => ({
       ...prev,
-      totalValue: totalValue.toFixed(2)
+      totalValue: totalValue.toFixed(2),
+      // Auto-calculate rate per liter based on TOTAL VALUE (not purchase value)
+      ratePerLiter: (parseFloat(prev.purchaseQuantity) > 0 && totalValue > 0) 
+        ? (totalValue / getQuantityInLiters(prev.purchaseQuantity, prev.fuelUnit)).toFixed(2) 
+        : prev.ratePerLiter
     }));
   };
 
-  const calculateGSTTotals = () => {
-    const purchaseValue = parseFloat(formData.purchaseValue) || 0;
+  // ✅ FIXED: Lube totals calculation
+  const calculateLubeTotals = () => {
+    const lubeQuantity = parseFloat(formData.lubeQuantity) || 0;
+    const lubeRate = parseFloat(formData.lubeRate) || 0;
+    const taxableValue = lubeQuantity * lubeRate;
     const cgst = parseFloat(formData.cgst) || 0;
     const sgst = parseFloat(formData.sgst) || 0;
     const igst = parseFloat(formData.igst) || 0;
     const discount = parseFloat(formData.discount) || 0;
     
-    const totalValue = purchaseValue + cgst + sgst + igst - discount;
+    const totalValue = taxableValue + cgst + sgst + igst - discount;
     
     setFormData(prev => ({
       ...prev,
+      purchaseValue: taxableValue.toFixed(2),
+      totalValue: Math.max(0, totalValue).toFixed(2)
+    }));
+  };
+
+  // ✅ FIXED: Fixed Asset totals calculation
+  const calculateFixedAssetTotals = () => {
+    const assetQuantity = parseFloat(formData.assetQuantity) || 1;
+    const assetRate = parseFloat(formData.assetRate) || 0;
+    const taxableValue = assetQuantity * assetRate;
+    const cgst = parseFloat(formData.cgst) || 0;
+    const sgst = parseFloat(formData.sgst) || 0;
+    const igst = parseFloat(formData.igst) || 0;
+    const discount = parseFloat(formData.discount) || 0;
+    
+    const totalValue = taxableValue + cgst + sgst + igst - discount;
+    
+    setFormData(prev => ({
+      ...prev,
+      purchaseValue: taxableValue.toFixed(2),
       totalValue: Math.max(0, totalValue).toFixed(2)
     }));
   };
@@ -185,7 +249,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
   };
 
   const handleUnitChange = (unit: FuelUnit) => {
-    if (unit === formData.fuelUnit) return; // No change needed
+    if (unit === formData.fuelUnit) return;
     
     const currentQuantity = parseFloat(formData.purchaseQuantity) || 0;
     const currentRate = parseFloat(formData.ratePerLiter) || 0;
@@ -221,13 +285,13 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
     missingFields = commonFields.filter(field => !formData[field as keyof typeof formData]);
 
     if (formData.purchaseType === "fuel") {
-      const fuelFields = ['tank', 'purchaseQuantity', 'purchaseValue', 'ratePerLiter'];
+      const fuelFields = ['tank', 'purchaseQuantity', 'ratePerLiter'];
       missingFields = [...missingFields, ...fuelFields.filter(field => !formData[field as keyof typeof formData])];
     } else if (formData.purchaseType === "lube") {
-      const lubeFields = ['lubeProductName', 'purchaseValue', 'totalValue'];
+      const lubeFields = ['lubeProductName', 'lubeQuantity', 'lubeRate'];
       missingFields = [...missingFields, ...lubeFields.filter(field => !formData[field as keyof typeof formData])];
     } else if (formData.purchaseType === "fixed-asset") {
-      const assetFields = ['assetName', 'assetCategory', 'totalValue'];
+      const assetFields = ['assetName', 'assetCategory', 'assetRate'];
       missingFields = [...missingFields, ...assetFields.filter(field => !formData[field as keyof typeof formData])];
     }
     
@@ -238,32 +302,6 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
         variant: "destructive",
       });
       return;
-    }
-
-    // Validate fuel calculations
-    if (formData.purchaseType === "fuel") {
-      const quantityInLiters = getQuantityInLiters(formData.purchaseQuantity);
-      const ratePerLiter = parseFloat(formData.ratePerLiter);
-      const purchaseValue = parseFloat(formData.purchaseValue);
-      
-      // Adjust rate calculation based on current unit
-      let expectedValue = 0;
-      if (formData.fuelUnit === "L") {
-        expectedValue = quantityInLiters * ratePerLiter;
-      } else {
-        // For KL, rate is already per KL, so no conversion needed
-        expectedValue = parseFloat(formData.purchaseQuantity) * ratePerLiter;
-      }
-      
-      // Allow small rounding differences
-      if (Math.abs(purchaseValue - expectedValue) > 1) {
-        toast({
-          title: "Calculation mismatch",
-          description: `Purchase value (${formatCurrency(purchaseValue)}) doesn't match quantity × rate (${formatCurrency(expectedValue)})`,
-          variant: "destructive",
-        });
-        return;
-      }
     }
 
     setLoading(true);
@@ -278,48 +316,54 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
       };
 
       if (formData.purchaseType === "fuel") {
-        const selectedTank = tanks.find(tank => tank._id === formData.tank);
-        const quantityInLiters = getQuantityInLiters(formData.purchaseQuantity);
+        const selectedTankObj = tanks.find(tank => tank._id === formData.tank) || selectedTank;
+        const quantityInLiters = getQuantityInLiters(formData.purchaseQuantity, formData.fuelUnit);
         
-        // Convert rate back to per liter for storage
-        let ratePerLiter = parseFloat(formData.ratePerLiter);
-        if (formData.fuelUnit === "KL") {
-          ratePerLiter = ratePerLiter / 1000; // Convert from per KL to per liter
-        }
+        // ✅ FIXED: Use TOTAL VALUE to calculate rate per liter
+        const totalValue = parseFloat(formData.totalValue) || 0;
+        const ratePerLiter = quantityInLiters > 0 ? totalValue / quantityInLiters : 0;
         
         payload = {
           ...payload,
-          product: selectedTank?.product || "",
+          product: selectedTankObj?.product || "",
           tank: formData.tank,
-          purchaseQuantity: quantityInLiters, // Always store in liters
-          purchaseValue: parseFloat(formData.purchaseValue),
-          ratePerLiter: ratePerLiter, // Always store as per liter
+          purchaseQuantity: quantityInLiters,
+          purchaseValue: parseFloat(formData.purchaseValue) || 0,
+          ratePerLiter: ratePerLiter,
           vehicleNumber: formData.vehicleNumber,
           density: formData.density ? parseFloat(formData.density) : undefined,
           vat: parseFloat(formData.vat) || 0,
           otherCharges: parseFloat(formData.otherCharges) || 0,
-          fuelUnit: formData.fuelUnit // Store the unit used for input
+          fuelUnit: formData.fuelUnit
         };
       } else if (formData.purchaseType === "lube") {
+        const taxableValue = parseFloat(formData.lubeQuantity) * parseFloat(formData.lubeRate);
         payload = {
           ...payload,
           product: formData.lubeProductName,
           purchaseType: "lube",
-          purchaseValue: parseFloat(formData.purchaseValue),
-          taxableValue: parseFloat(formData.purchaseValue),
+          purchaseQuantity: parseFloat(formData.lubeQuantity),
+          purchaseValue: taxableValue,
+          taxableValue: taxableValue,
+          ratePerUnit: parseFloat(formData.lubeRate),
           cgst: parseFloat(formData.cgst) || 0,
           sgst: parseFloat(formData.sgst) || 0,
           igst: parseFloat(formData.igst) || 0,
-          discount: parseFloat(formData.discount) || 0
+          discount: parseFloat(formData.discount) || 0,
+          unit: formData.lubeUnit
         };
       } else if (formData.purchaseType === "fixed-asset") {
+        const taxableValue = parseFloat(formData.assetQuantity) * parseFloat(formData.assetRate);
         payload = {
           ...payload,
           purchaseType: "fixed-asset",
           assetName: formData.assetName,
           assetCategory: formData.assetCategory,
           assetDescription: formData.assetDescription,
-          taxableValue: parseFloat(formData.purchaseValue) || 0,
+          assetQuantity: parseFloat(formData.assetQuantity),
+          purchaseValue: taxableValue,
+          taxableValue: taxableValue,
+          ratePerUnit: parseFloat(formData.assetRate),
           cgst: parseFloat(formData.cgst) || 0,
           sgst: parseFloat(formData.sgst) || 0,
           igst: parseFloat(formData.igst) || 0,
@@ -351,50 +395,95 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
   };
 
   const resetForm = () => {
-    setFormData({
-      purchaseType: "fuel",
-      fuelUnit: "L",
-      supplier: "Bharat Petroleum",
-      invoiceNumber: "",
-      invoiceDate: new Date().toISOString().split('T')[0],
-      product: "",
-      tank: "",
-      purchaseQuantity: "",
-      purchaseValue: "",
-      ratePerLiter: "",
-      vehicleNumber: "",
-      density: "",
-      vat: "",
-      cgst: "",
-      sgst: "",
-      igst: "",
-      otherCharges: "",
-      discount: "",
-      totalValue: "",
-      lubeProductName: "",
-      assetName: "",
-      assetCategory: "",
-      assetDescription: ""
-    });
+    if (selectedTank) {
+      setFormData({
+        purchaseType: "fuel",
+        fuelUnit: "L",
+        supplier: "Bharat Petroleum",
+        invoiceNumber: "",
+        invoiceDate: new Date().toISOString().split('T')[0],
+        product: selectedTank.product,
+        tank: selectedTank._id,
+        purchaseQuantity: "",
+        purchaseValue: "",
+        ratePerLiter: "",
+        vehicleNumber: "",
+        density: "",
+        vat: "",
+        cgst: "",
+        sgst: "",
+        igst: "",
+        otherCharges: "",
+        discount: "",
+        totalValue: "",
+        lubeProductName: "",
+        lubeQuantity: "",
+        lubeUnit: "L",
+        lubeRate: "",
+        assetName: "",
+        assetCategory: "",
+        assetDescription: "",
+        assetQuantity: "1",
+        assetRate: ""
+      });
+    } else {
+      setFormData({
+        purchaseType: "fuel",
+        fuelUnit: "L",
+        supplier: "Bharat Petroleum",
+        invoiceNumber: "",
+        invoiceDate: new Date().toISOString().split('T')[0],
+        product: "",
+        tank: "",
+        purchaseQuantity: "",
+        purchaseValue: "",
+        ratePerLiter: "",
+        vehicleNumber: "",
+        density: "",
+        vat: "",
+        cgst: "",
+        sgst: "",
+        igst: "",
+        otherCharges: "",
+        discount: "",
+        totalValue: "",
+        lubeProductName: "",
+        lubeQuantity: "",
+        lubeUnit: "L",
+        lubeRate: "",
+        assetName: "",
+        assetCategory: "",
+        assetDescription: "",
+        assetQuantity: "1",
+        assetRate: ""
+      });
+    }
   };
 
-  const selectedTank = tanks.find(tank => tank._id === formData.tank);
+  const selectedTankObj = tanks.find(tank => tank._id === formData.tank) || selectedTank;
 
   const formatCurrency = (value: string | number) => {
     const numValue = typeof value === 'string' ? parseFloat(value) || 0 : value;
     return `₹${numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Manual calculation triggers - ONLY calculate when manually triggered
+  // ✅ FIXED: Manual calculation triggers with TOTAL VALUE
   const calculateFromQuantityAndRate = () => {
-    const quantity = parseFloat(formData.purchaseQuantity) || 0;
+    const quantity = getQuantityInLiters(formData.purchaseQuantity, formData.fuelUnit);
     const rate = parseFloat(formData.ratePerLiter) || 0;
     
     if (quantity > 0 && rate > 0) {
       const purchaseValue = quantity * rate;
+      // Calculate VAT as 10% of purchase value (if not set)
+      const vat = parseFloat(formData.vat) || (purchaseValue * 0.10);
+      const otherCharges = parseFloat(formData.otherCharges) || 0;
+      const totalValue = purchaseValue + vat + otherCharges;
+      
       setFormData(prev => ({
         ...prev,
-        purchaseValue: purchaseValue.toFixed(2)
+        purchaseValue: purchaseValue.toFixed(2),
+        vat: vat.toFixed(2),
+        totalValue: totalValue.toFixed(2)
       }));
     } else {
       toast({
@@ -406,11 +495,11 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
   };
 
   const calculateRateFromQuantityAndValue = () => {
-    const quantity = parseFloat(formData.purchaseQuantity) || 0;
-    const purchaseValue = parseFloat(formData.purchaseValue) || 0;
+    const quantity = getQuantityInLiters(formData.purchaseQuantity, formData.fuelUnit);
+    const totalValue = parseFloat(formData.totalValue) || 0;
     
-    if (quantity > 0 && purchaseValue > 0) {
-      const rate = purchaseValue / quantity;
+    if (quantity > 0 && totalValue > 0) {
+      const rate = totalValue / quantity;
       setFormData(prev => ({
         ...prev,
         ratePerLiter: rate.toFixed(2)
@@ -418,7 +507,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
     } else {
       toast({
         title: "Cannot calculate",
-        description: "Please enter both quantity and purchase value first",
+        description: "Please enter both quantity and total value first",
         variant: "destructive",
       });
     }
@@ -426,53 +515,135 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
 
   const calculateQuantityFromRateAndValue = () => {
     const rate = parseFloat(formData.ratePerLiter) || 0;
-    const purchaseValue = parseFloat(formData.purchaseValue) || 0;
+    const totalValue = parseFloat(formData.totalValue) || 0;
     
-    if (rate > 0 && purchaseValue > 0) {
-      const quantity = purchaseValue / rate;
+    if (rate > 0 && totalValue > 0) {
+      const quantity = totalValue / rate;
+      const displayQuantity = formData.fuelUnit === "KL" ? (quantity / 1000).toFixed(3) : quantity.toString();
       setFormData(prev => ({
         ...prev,
-        purchaseQuantity: quantity.toFixed(3)
+        purchaseQuantity: displayQuantity
       }));
     } else {
       toast({
         title: "Cannot calculate",
-        description: "Please enter both rate and purchase value first",
+        description: "Please enter both rate and total value first",
         variant: "destructive",
       });
     }
   };
 
+  // Check if tank is pre-selected
+  const isTankPreSelected = !!selectedTank;
+
+  // ✅ FIXED: Purchase type icons
+  const getPurchaseTypeIcon = (type: PurchaseType) => {
+    switch(type) {
+      case "fuel": return <Droplet className="h-5 w-5 text-blue-600" />;
+      case "lube": return <Package className="h-5 w-5 text-orange-600" />;
+      case "fixed-asset": return <Building className="h-5 w-5 text-purple-600" />;
+      default: return <IndianRupee className="h-5 w-5 text-green-600" />;
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      onOpenChange(isOpen);
+      if (!isOpen) resetForm();
+    }}>
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Record Purchase</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <IndianRupee className="h-5 w-5 text-green-600" />
+            Record Purchase
+            {selectedTank && formData.purchaseType === "fuel" && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                • For: <span className="font-semibold">{selectedTank.tankName}</span>
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
         
         {fetchingTanks ? (
           <div className="flex items-center justify-center py-8">
-            <p>Loading tank configurations...</p>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
+            <p>Loading configurations...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-            {/* Purchase Type Selection */}
+            {/* Purchase Type Selection - ALWAYS VISIBLE */}
             <div className="space-y-2">
               <Label htmlFor="purchaseType">Purchase Type *</Label>
               <Select 
                 value={formData.purchaseType} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, purchaseType: value as PurchaseType }))}
+                onValueChange={(value) => {
+                  const newType = value as PurchaseType;
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    purchaseType: newType,
+                    // If switching to fuel and no tank selected, reset tank
+                    ...(newType === "fuel" && !isTankPreSelected && {
+                      tank: "",
+                      product: ""
+                    })
+                  }));
+                }}
               >
-                <SelectTrigger id="purchaseType">
-                  <SelectValue />
+                <SelectTrigger id="purchaseType" className="h-12">
+                  <div className="flex items-center gap-2">
+                    {getPurchaseTypeIcon(formData.purchaseType as PurchaseType)}
+                    <SelectValue placeholder="Select purchase type" />
+                  </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fuel">Fuel Purchase (VAT)</SelectItem>
-                  <SelectItem value="lube">Lube Purchase (GST)</SelectItem>
-                  <SelectItem value="fixed-asset">Fixed Asset Purchase (GST)</SelectItem>
+                  <SelectItem value="fuel">
+                    <div className="flex items-center gap-2">
+                      <Droplet className="h-4 w-4 text-blue-600" />
+                      <span>Fuel Purchase (VAT)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="lube">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-orange-600" />
+                      <span>Lube Purchase (GST)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="fixed-asset">
+                    <div className="flex items-center gap-2">
+                      <Building className="h-4 w-4 text-purple-600" />
+                      <span>Fixed Asset Purchase (GST)</span>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {/* AUTO-SELECTED TANK DISPLAY - Only for fuel purchases */}
+            {isTankPreSelected && formData.purchaseType === "fuel" && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 p-2 rounded-full">
+                      <Check className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-blue-800">{selectedTank?.tankName}</h3>
+                      <div className="text-sm text-blue-600">
+                        {selectedTank?.product} • Capacity: {selectedTank?.capacity.toLocaleString()}L
+                        {selectedTank?.currentStock && (
+                          <span className="ml-3">• Current: {selectedTank.currentStock}L ({selectedTank.currentLevel}%)</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">
+                    AUTO-SELECTED
+                  </div>
+                </div>
+                <input type="hidden" name="tank" value={formData.tank} />
+                <input type="hidden" name="product" value={formData.product} />
+              </div>
+            )}
 
             {/* Common Fields */}
             <div className="grid grid-cols-2 gap-4">
@@ -485,11 +656,23 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                   disabled
                   className="bg-gray-100 cursor-not-allowed"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Supplier is fixed as Bharat Petroleum
-                </p>
+              
               </div>
+              {isTankPreSelected && formData.purchaseType === "fuel" && (
+                <div className="space-y-2">
+                  <Label htmlFor="vehicleNumber">Vehicle Number</Label>
+                  <Input 
+                    id="vehicleNumber" 
+                    placeholder="DL01AB1234"
+                    value={formData.vehicleNumber}
+                    onChange={(e) => handleFieldChange("vehicleNumber", e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+            
 
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="invoiceNumber">Invoice Number *</Label>
                 <Input 
@@ -500,9 +683,6 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                   required
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="invoiceDate">Invoice Date *</Label>
                 <Input 
@@ -519,32 +699,38 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
             {formData.purchaseType === "fuel" && (
               <>
                 <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-4">Fuel Purchase Details (VAT)</h3>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Droplet className="h-5 w-5 text-blue-600" />
+                    Fuel Purchase Details (VAT)
+                  </h3>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="tank">Select Tank *</Label>
-                    <Select 
-                      value={formData.tank} 
-                      onValueChange={(value) => handleFieldChange("tank", value)}
-                      disabled={tanks.length === 0}
-                    >
-                      <SelectTrigger id="tank">
-                        <SelectValue placeholder={tanks.length === 0 ? "No tanks available" : "Select tank"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tanks.map((tank) => (
-                          <SelectItem key={tank._id} value={tank._id}>
-                            {tank.tankName} - {tank.product} ({tank.capacity}L)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedTank && (
-                      <p className="text-xs text-muted-foreground">
-                        Selected: {selectedTank.product} | Capacity: {selectedTank.capacity}L
-                      </p>
-                    )}
-                  </div>
+                  {/* Manual tank selection ONLY if no pre-selected tank */}
+                  {!isTankPreSelected && (
+                    <div className="space-y-2">
+                      <Label htmlFor="tank">Select Tank *</Label>
+                      <Select 
+                        value={formData.tank} 
+                        onValueChange={(value) => handleFieldChange("tank", value)}
+                        disabled={tanks.length === 0}
+                      >
+                        <SelectTrigger id="tank">
+                          <SelectValue placeholder={tanks.length === 0 ? "No tanks available" : "Select tank"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tanks.map((tank) => (
+                            <SelectItem key={tank._id} value={tank._id}>
+                              {tank.tankName} - {tank.product} ({tank.capacity}L)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedTankObj && (
+                        <p className="text-xs text-muted-foreground">
+                          Selected: {selectedTankObj.product} | Capacity: {selectedTankObj.capacity}L
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Unit Selection */}
                   <div className="space-y-2 mt-4">
@@ -576,7 +762,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                           size="sm"
                           className="ml-2 h-4 w-4 p-0"
                           onClick={calculateQuantityFromRateAndValue}
-                          title="Calculate quantity from rate and value"
+                          title="Calculate quantity from rate and total value"
                         >
                           <RefreshCw className="h-3 w-3" />
                         </Button>
@@ -593,21 +779,21 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                       />
                       {formData.fuelUnit === "KL" && formData.purchaseQuantity && (
                         <p className="text-xs text-muted-foreground">
-                          {getQuantityInLiters(formData.purchaseQuantity).toLocaleString()} L
+                          {getQuantityInLiters(formData.purchaseQuantity, formData.fuelUnit).toLocaleString()} L
                         </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="ratePerLiter">
-                        Rate per {formData.fuelUnit} (₹) *
+                        Rate per Liter (₹) *
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           className="ml-2 h-4 w-4 p-0"
                           onClick={calculateRateFromQuantityAndValue}
-                          title="Calculate rate from quantity and value"
+                          title="Calculate rate from quantity and total value"
                         >
                           <RefreshCw className="h-3 w-3" />
                         </Button>
@@ -615,7 +801,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                       <Input 
                         id="ratePerLiter" 
                         type="number"
-                        placeholder={formData.fuelUnit === "KL" ? "95000" : "95.50"}
+                        placeholder="95.50"
                         value={formData.ratePerLiter}
                         onChange={(e) => handleFieldChange("ratePerLiter", e.target.value)}
                         required
@@ -626,14 +812,14 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
 
                     <div className="space-y-2">
                       <Label htmlFor="purchaseValue">
-                        Purchase Value (₹) *
+                        Purchase Value (₹)
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           className="ml-2 h-4 w-4 p-0"
                           onClick={calculateFromQuantityAndRate}
-                          title="Calculate value from quantity and rate"
+                          title="Calculate purchase value from quantity and rate"
                         >
                           <RefreshCw className="h-3 w-3" />
                         </Button>
@@ -644,33 +830,17 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                         placeholder="191000"
                         value={formData.purchaseValue}
                         onChange={(e) => handleFieldChange("purchaseValue", e.target.value)}
-                        required
                         min="0"
                         step="0.01"
                       />
                     </div>
                   </div>
 
-                  {/* Calculation Info */}
-                  <div className="mt-2 p-2 bg-blue-50 rounded-md">
-                    <p className="text-xs text-blue-700">
-                      <strong>Manual Calculation:</strong> Enter any two values and click the refresh icon to calculate the third value.
-                      <br />
-                      <strong>Unit Conversion:</strong> All values automatically convert when switching between L and KL.
-                    </p>
-                  </div>
+                
 
                   {/* Additional Fields for Fuel */}
                   <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="vehicleNumber">Vehicle Number</Label>
-                      <Input 
-                        id="vehicleNumber" 
-                        placeholder="DL01AB1234"
-                        value={formData.vehicleNumber}
-                        onChange={(e) => handleFieldChange("vehicleNumber", e.target.value)}
-                      />
-                    </div>
+                    
                     <div className="space-y-2">
                       <Label htmlFor="density">Density (kg/L)</Label>
                       <Input 
@@ -684,7 +854,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                     </div>
                   </div>
 
-                  {/* Fuel Value Breakdown */}
+                  {/* ✅ FIXED: Fuel Value Breakdown */}
                   <Card className="mt-4">
                     <CardContent className="pt-4">
                       <h4 className="font-semibold mb-3 flex items-center">
@@ -704,6 +874,9 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                               min="0"
                               step="0.01"
                             />
+                            <p className="text-xs text-muted-foreground">
+                              Typically 10-12% of purchase value
+                            </p>
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="otherCharges">Other Charges (₹)</Label>
@@ -739,6 +912,9 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                               <span>Total Value:</span>
                               <span className="text-green-600">{formatCurrency(formData.totalValue)}</span>
                             </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Total Value = Purchase Value + VAT + Other Charges
+                            </p>
                           </div>
                           <Input 
                             type="hidden"
@@ -757,7 +933,10 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
             {formData.purchaseType === "lube" && (
               <>
                 <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-4">Lube Purchase Details (GST)</h3>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Package className="h-5 w-5 text-orange-600" />
+                    Lube Purchase Details (GST)
+                  </h3>
                   
                   <div className="space-y-2">
                     <Label htmlFor="lubeProductName">Lube Product Name *</Label>
@@ -770,18 +949,53 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                     />
                   </div>
 
-                  <div className="space-y-2 mt-4">
-                    <Label htmlFor="purchaseValue">Taxable Value (₹) *</Label>
-                    <Input 
-                      id="purchaseValue" 
-                      type="number"
-                      placeholder="50000"
-                      value={formData.purchaseValue}
-                      onChange={(e) => handleFieldChange("purchaseValue", e.target.value)}
-                      required
-                      min="0"
-                      step="0.01"
-                    />
+                  <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="lubeQuantity">Quantity (L) *</Label>
+                      <Input 
+                        id="lubeQuantity" 
+                        type="number"
+                        placeholder="200"
+                        value={formData.lubeQuantity}
+                        onChange={(e) => handleFieldChange("lubeQuantity", e.target.value)}
+                        required
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="lubeRate">Rate per Liter (₹) *</Label>
+                      <Input 
+                        id="lubeRate" 
+                        type="number"
+                        placeholder="500"
+                        value={formData.lubeRate}
+                        onChange={(e) => handleFieldChange("lubeRate", e.target.value)}
+                        required
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="lubeUnit">Unit</Label>
+                      <Select 
+                        value={formData.lubeUnit} 
+                        onValueChange={(value) => handleFieldChange("lubeUnit", value)}
+                      >
+                        <SelectTrigger id="lubeUnit">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="L">Liters (L)</SelectItem>
+                          <SelectItem value="KL">Kiloliters (KL)</SelectItem>
+                          <SelectItem value="Kg">Kilograms (Kg)</SelectItem>
+                          <SelectItem value="Tin">Tin</SelectItem>
+                          <SelectItem value="Drum">Drum</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* Lube Value Breakdown */}
@@ -851,7 +1065,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between items-center">
                               <span>Taxable Value:</span>
-                              <span className="font-medium">{formatCurrency(formData.purchaseValue)}</span>
+                              <span className="font-medium">{formatCurrency(parseFloat(formData.lubeQuantity) * parseFloat(formData.lubeRate))}</span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span>CGST:</span>
@@ -893,7 +1107,10 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
             {formData.purchaseType === "fixed-asset" && (
               <>
                 <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-4">Fixed Asset Purchase Details (GST)</h3>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Building className="h-5 w-5 text-purple-600" />
+                    Fixed Asset Purchase Details (GST)
+                  </h3>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -938,18 +1155,34 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                     />
                   </div>
 
-                  <div className="space-y-2 mt-4">
-                    <Label htmlFor="purchaseValue">Taxable Value (₹) *</Label>
-                    <Input 
-                      id="purchaseValue" 
-                      type="number"
-                      placeholder="100000"
-                      value={formData.purchaseValue}
-                      onChange={(e) => handleFieldChange("purchaseValue", e.target.value)}
-                      required
-                      min="0"
-                      step="0.01"
-                    />
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="assetQuantity">Quantity *</Label>
+                      <Input 
+                        id="assetQuantity" 
+                        type="number"
+                        placeholder="1"
+                        value={formData.assetQuantity}
+                        onChange={(e) => handleFieldChange("assetQuantity", e.target.value)}
+                        required
+                        min="1"
+                        step="1"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="assetRate">Rate per Unit (₹) *</Label>
+                      <Input 
+                        id="assetRate" 
+                        type="number"
+                        placeholder="100000"
+                        value={formData.assetRate}
+                        onChange={(e) => handleFieldChange("assetRate", e.target.value)}
+                        required
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
                   </div>
 
                   {/* Fixed Asset Value Breakdown */}
@@ -1019,7 +1252,7 @@ export const StockPurchaseModal = ({ open, onOpenChange, onPurchaseAdded }: Stoc
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between items-center">
                               <span>Taxable Value:</span>
-                              <span className="font-medium">{formatCurrency(formData.purchaseValue)}</span>
+                              <span className="font-medium">{formatCurrency(parseFloat(formData.assetQuantity) * parseFloat(formData.assetRate))}</span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span>CGST:</span>

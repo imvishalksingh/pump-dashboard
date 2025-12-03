@@ -36,6 +36,8 @@ import ErrorBoundar from "./components/ErrorBoundry"; // Add this import
 import AdminInvitationsPanel from "./components/AdminInvitationsPanel"; // Add this import
 import { cn } from "./lib/utils";
 import { BackupManagement } from "./components/BackupManagement";
+import { SalesManagementEditPage } from "./components/Sales/SalesManagementEditPage";
+
 
 
 const queryClient = new QueryClient();
@@ -107,7 +109,7 @@ const AppContent = () => {
                       {/* Module Routes */}
                       <Route path="/pumps" element={<PumpNozzleManagementPage />} />
                       <Route path="/fuel-stock" element={<FuelStockPage />} />
-                      <Route path="/sales-management" element={<SalesManagementPage />} />
+                      {/* <Route path="/sales-management" element={<SalesManagementPage />} /> */}
                       <Route path="/nozzleman-management" element={<NozzlemanManagementPage />} />
                       <Route path="/credit-customers" element={<CreditCustomerPage />} />
                       <Route path="/expense-cash" element={<ExpenseCashPage />} />
@@ -116,6 +118,9 @@ const AppContent = () => {
                       <Route path="/notifications" element={<NotificationsPage />} />
                       <Route path="/reports-analytics" element={<ReportsPage />} />
                       <Route  path="/backup-management" element={<BackupManagement />} />
+                      <Route path="/sales-management/overview" element={<SalesManagementPage />} />
+                      <Route path="/sales-management/edit" element={<SalesManagementEditPage />} />
+                      <Route path="/sales-management" element={<Navigate to="/sales-management/overview" replace />} />
 
                       {/* Catch-all route */}
                       <Route path="*" element={<NotFound />} />

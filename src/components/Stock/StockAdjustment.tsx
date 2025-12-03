@@ -1,4 +1,4 @@
-// components/Stock/StockAdjustment.tsx - FIXED
+// components/Stock/StockAdjustment.tsx - FIXED (Auto-select tank)
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,9 +37,10 @@ interface TankConfig {
 
 interface StockAdjustmentProps {
   onAdjustmentAdded: () => void;
+  selectedTank?: TankConfig | null; // ✅ NEW: Add selectedTank prop
 }
 
-export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => {
+export const StockAdjustment = ({ onAdjustmentAdded, selectedTank = null }: StockAdjustmentProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tanks, setTanks] = useState<TankConfig[]>([]);
@@ -57,6 +58,17 @@ export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => 
     adjustmentType: "",
     customReason: ""
   });
+
+  // ✅ FIXED: Auto-populate selected tank when modal opens
+  useEffect(() => {
+    if (open && selectedTank) {
+      setFormData(prev => ({
+        ...prev,
+        tank: selectedTank._id,
+        product: selectedTank.product
+      }));
+    }
+  }, [open, selectedTank]);
 
   // Check authentication status when component mounts
   useEffect(() => {
@@ -242,7 +254,8 @@ export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => 
       calculateQuantityFromDip(value);
     }
 
-    if (field === "tank" && value) {
+    if (field === "tank" && value && !selectedTank) {
+      // Only auto-select product if NOT using pre-selected tank
       const selectedTank = tanks?.find(tank => tank._id === value);
       if (selectedTank) {
         setFormData(prev => ({
@@ -254,30 +267,48 @@ export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => 
   };
 
   const resetForm = () => {
-    setFormData({
-      product: "",
-      tank: "",
-      dipReading: "",
-      calculatedQuantity: "",
-      quantity: "",
-      reason: "Daily Update",
-      adjustmentType: "",
-      customReason: ""
-    });
+    if (selectedTank) {
+      // Keep the selected tank if provided
+      setFormData({
+        product: selectedTank.product,
+        tank: selectedTank._id,
+        dipReading: "",
+        calculatedQuantity: "",
+        quantity: "",
+        reason: "Daily Update",
+        adjustmentType: "",
+        customReason: ""
+      });
+    } else {
+      // Reset completely if no selected tank
+      setFormData({
+        product: "",
+        tank: "",
+        dipReading: "",
+        calculatedQuantity: "",
+        quantity: "",
+        reason: "Daily Update",
+        adjustmentType: "",
+        customReason: ""
+      });
+    }
   };
 
   // FIX: Add safe access to selectedTank with default dimensions
-  const selectedTank = tanks?.find(tank => tank._id === formData.tank);
+  const selectedTankObj = tanks?.find(tank => tank._id === formData.tank) || selectedTank;
   
   // Safe dimensions with defaults
   const safeDimensions = {
-    height: selectedTank?.dimensions?.height || 0,
-    length: selectedTank?.dimensions?.length || 0,
-    width: selectedTank?.dimensions?.width || 0
+    height: selectedTankObj?.dimensions?.height || 0,
+    length: selectedTankObj?.dimensions?.length || 0,
+    width: selectedTankObj?.dimensions?.width || 0
   };
 
   // Safe dip formula
-  const safeDipFormula = selectedTank?.dipFormula || "Standard Formula";
+  const safeDipFormula = selectedTankObj?.dipFormula || "Standard Formula";
+
+  // ✅ FIXED: Check if tank is pre-selected
+  const isTankPreSelected = !!selectedTank;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -293,6 +324,11 @@ export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => 
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Daily Stock Update</DialogTitle>
+          {selectedTank && (
+            <p className="text-sm text-muted-foreground mt-1">
+              For: <span className="font-semibold">{selectedTank.tankName}</span>
+            </p>
+          )}
         </DialogHeader>
         
         {fetchingTanks ? (
@@ -302,33 +338,50 @@ export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => 
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            {/* Tank Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="tank">Select Tank *</Label>
-              <Select 
-                value={formData.tank} 
-                onValueChange={(value) => handleChange("tank", value)}
-                disabled={tanks.length === 0}
-              >
-                <SelectTrigger id="tank">
-                  <SelectValue placeholder={
-                    tanks.length === 0 ? "No tanks available" : "Select tank"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {tanks.map((tank) => (
-                    <SelectItem key={tank._id} value={tank._id}>
-                      {tank.tankName} - {tank.product} ({tank.capacity}L)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {tanks.length === 0 && (
-                <p className="text-xs text-destructive">
-                  No tank configurations found. Please contact administrator.
+            {/* ✅ FIXED: Auto-selected tank display */}
+            {isTankPreSelected ? (
+              <div className="space-y-2">
+                <Label>Selected Tank</Label>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="font-medium">{selectedTank?.tankName}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {selectedTank?.product} • Capacity: {selectedTank?.capacity}L
+                  </div>
+                  <input type="hidden" name="tank" value={formData.tank} />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Tank is auto-selected. No need to select again.
                 </p>
-              )}
-            </div>
+              </div>
+            ) : (
+              /* Only show tank selection if no pre-selected tank */
+              <div className="space-y-2">
+                <Label htmlFor="tank">Select Tank *</Label>
+                <Select 
+                  value={formData.tank} 
+                  onValueChange={(value) => handleChange("tank", value)}
+                  disabled={tanks.length === 0}
+                >
+                  <SelectTrigger id="tank">
+                    <SelectValue placeholder={
+                      tanks.length === 0 ? "No tanks available" : "Select tank"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tanks.map((tank) => (
+                      <SelectItem key={tank._id} value={tank._id}>
+                        {tank.tankName} - {tank.product} ({tank.capacity}L)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {tanks.length === 0 && (
+                  <p className="text-xs text-destructive">
+                    No tank configurations found. Please contact administrator.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Auto-populated Product */}
             {formData.product && (
@@ -371,7 +424,7 @@ export const StockAdjustment = ({ onAdjustmentAdded }: StockAdjustmentProps) => 
                 </Button>
               </div>
               {/* FIXED: Use safe dimensions and dip formula */}
-              {selectedTank && (
+              {selectedTankObj && (
                 <p className="text-xs text-muted-foreground">
                   Tank Height: {safeDimensions.height}cm | 
                   Formula: {safeDipFormula}

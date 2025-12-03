@@ -1,3 +1,4 @@
+// ManualEntryDialog.tsx - UPDATED VERSION
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Calendar, User, DollarSign, Fuel, Receipt } from "lucide-react";
+import { Plus, Calendar, User, DollarSign, Fuel, Receipt, TestTube, CreditCard, Smartphone, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/utils/api";
 
@@ -28,14 +29,34 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
   const [formData, setFormData] = useState({
     nozzlemanId: "",
     date: new Date().toISOString().split('T')[0],
+    
+    // Sales Breakdown
     cashSales: "",
     phonePeSales: "",
     posSales: "",
+    otpSales: "",
     creditSales: "",
+    
+    // Fuel Data
+    fuelDispensed: "",
+    testingFuel: "",
+    
+    // Meter Readings - HSD
+    hsdOpening: "",
+    hsdClosing: "",
+    
+    // Meter Readings - Petrol
+    petrolOpening: "",
+    petrolClosing: "",
+    
+    // Financials
     expenses: "",
     cashDeposit: "",
-    fuelDispensed: "",
-    notes: ""
+    cashInHand: "",
+    
+    // Additional Info
+    notes: "",
+    shiftId: ""
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,14 +76,37 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
       const payload = {
         nozzlemanId: formData.nozzlemanId,
         date: formData.date,
-        cashSales: parseFloat(formData.cashSales) || 0,     // This will map to cashCollected
+        
+        // Sales data
+        cashSales: parseFloat(formData.cashSales) || 0,
         phonePeSales: parseFloat(formData.phonePeSales) || 0,
         posSales: parseFloat(formData.posSales) || 0,
+        otpSales: parseFloat(formData.otpSales) || 0,
         creditSales: parseFloat(formData.creditSales) || 0,
+        
+        // Fuel data
+        fuelDispensed: parseFloat(formData.fuelDispensed) || 0,
+        testingFuel: parseFloat(formData.testingFuel) || 0,
+        
+        // Meter readings
+        meterReadingHSD: {
+          opening: parseFloat(formData.hsdOpening) || 0,
+          closing: parseFloat(formData.hsdClosing) || 0
+        },
+        meterReadingPetrol: {
+          opening: parseFloat(formData.petrolOpening) || 0,
+          closing: parseFloat(formData.petrolClosing) || 0
+        },
+        
+        // Financials
         expenses: parseFloat(formData.expenses) || 0,
         cashDeposit: parseFloat(formData.cashDeposit) || 0,
-        fuelDispensed: parseFloat(formData.fuelDispensed) || 0,
-        notes: formData.notes
+        cashInHand: parseFloat(formData.cashInHand) || 0,
+        
+        // Additional
+        notes: formData.notes,
+        shiftId: formData.shiftId || `MANUAL-${Date.now()}`,
+        isManualEntry: true
       };
 
       console.log("📤 Sending manual entry data:", payload);
@@ -97,12 +141,28 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
       cashSales: "",
       phonePeSales: "",
       posSales: "",
+      otpSales: "",
       creditSales: "",
+      fuelDispensed: "",
+      testingFuel: "",
+      hsdOpening: "",
+      hsdClosing: "",
+      petrolOpening: "",
+      petrolClosing: "",
       expenses: "",
       cashDeposit: "",
-      fuelDispensed: "",
-      notes: ""
+      cashInHand: "",
+      notes: "",
+      shiftId: ""
     });
+  };
+
+  const calculateTotalSales = () => {
+    return (parseFloat(formData.cashSales) || 0) +
+           (parseFloat(formData.phonePeSales) || 0) +
+           (parseFloat(formData.posSales) || 0) +
+           (parseFloat(formData.otpSales) || 0) +
+           (parseFloat(formData.creditSales) || 0);
   };
 
   const calculateCashInHand = () => {
@@ -110,13 +170,6 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
     const expenses = parseFloat(formData.expenses) || 0;
     const cashDeposit = parseFloat(formData.cashDeposit) || 0;
     return cashSales - expenses - cashDeposit;
-  };
-
-  const calculateTotalSales = () => {
-    return (parseFloat(formData.cashSales) || 0) +
-           (parseFloat(formData.phonePeSales) || 0) +
-           (parseFloat(formData.posSales) || 0) +
-           (parseFloat(formData.creditSales) || 0);
   };
 
   return (
@@ -132,7 +185,7 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
           Manual Entry
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="w-5 h-5" />
@@ -191,7 +244,7 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
               <DollarSign className="w-4 h-4" />
               Sales Breakdown (₹)
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="cashSales">Cash Sales</Label>
                 <Input
@@ -232,6 +285,19 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="otpSales">OTP Sales</Label>
+                <Input
+                  id="otpSales"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.otpSales}
+                  onChange={(e) => setFormData({...formData, otpSales: e.target.value})}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="creditSales">Credit Sales</Label>
                 <Input
                   id="creditSales"
@@ -246,13 +312,13 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
             </div>
           </div>
 
-          {/* Fuel and Financials */}
+          {/* Fuel Data */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Fuel className="w-4 h-4" />
-              Fuel & Financials
+              Fuel Data (Liters)
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fuelDispensed">Fuel Dispensed (L)</Label>
                 <Input
@@ -266,6 +332,98 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="testingFuel">Testing Fuel (L)</Label>
+                <Input
+                  id="testingFuel"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.testingFuel}
+                  onChange={(e) => setFormData({...formData, testingFuel: e.target.value})}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Meter Readings */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Fuel className="w-4 h-4" />
+              Meter Readings
+            </div>
+            
+            {/* HSD Meter Readings */}
+            <div className="space-y-3 p-4 border rounded-lg">
+              <Label className="text-sm font-semibold">HSD (Diesel) Meter Readings</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="hsdOpening">Opening Reading</Label>
+                  <Input
+                    id="hsdOpening"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.hsdOpening}
+                    onChange={(e) => setFormData({...formData, hsdOpening: e.target.value})}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hsdClosing">Closing Reading</Label>
+                  <Input
+                    id="hsdClosing"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.hsdClosing}
+                    onChange={(e) => setFormData({...formData, hsdClosing: e.target.value})}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Petrol Meter Readings */}
+            <div className="space-y-3 p-4 border rounded-lg">
+              <Label className="text-sm font-semibold">Petrol Meter Readings</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="petrolOpening">Opening Reading</Label>
+                  <Input
+                    id="petrolOpening"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.petrolOpening}
+                    onChange={(e) => setFormData({...formData, petrolOpening: e.target.value})}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="petrolClosing">Closing Reading</Label>
+                  <Input
+                    id="petrolClosing"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.petrolClosing}
+                    onChange={(e) => setFormData({...formData, petrolClosing: e.target.value})}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Financials */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Wallet className="w-4 h-4" />
+              Financial Details
+            </div>
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="expenses">Expenses (₹)</Label>
                 <Input
@@ -291,11 +449,23 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
                   placeholder="0.00"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cashInHand">Cash in Hand (₹)</Label>
+                <Input
+                  id="cashInHand"
+                  type="number"
+                  step="0.01"
+                  value={formData.cashInHand}
+                  onChange={(e) => setFormData({...formData, cashInHand: e.target.value})}
+                  placeholder="0.00"
+                />
+              </div>
             </div>
           </div>
 
           {/* Summary */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+          <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
             <div>
               <p className="text-sm font-medium">Total Sales</p>
               <p className="text-lg font-bold text-green-600">
@@ -303,25 +473,46 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
               </p>
             </div>
             <div>
-              <p className="text-sm font-medium">Cash in Hand</p>
+              <p className="text-sm font-medium">Calculated Cash in Hand</p>
               <p className={`text-lg font-bold ${
                 calculateCashInHand() >= 0 ? 'text-blue-600' : 'text-red-600'
               }`}>
                 ₹{calculateCashInHand().toLocaleString()}
               </p>
             </div>
+            <div>
+              <p className="text-sm font-medium">Net Fuel Sold</p>
+              <p className="text-lg font-bold text-purple-600">
+                {((parseFloat(formData.fuelDispensed) || 0) - (parseFloat(formData.testingFuel) || 0)).toLocaleString()} L
+              </p>
+            </div>
           </div>
 
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({...formData, notes: e.target.value})}
-              placeholder="Additional notes or remarks..."
-              rows={3}
-            />
+          {/* Additional Info */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="shiftId">Shift ID (Optional)</Label>
+                <Input
+                  id="shiftId"
+                  type="text"
+                  value={formData.shiftId}
+                  onChange={(e) => setFormData({...formData, shiftId: e.target.value})}
+                  placeholder="e.g., SH-0001"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                placeholder="Additional notes or remarks..."
+                rows={3}
+              />
+            </div>
           </div>
 
           {/* Actions */}
@@ -336,7 +527,7 @@ export const ManualEntryDialog = ({ onSuccess, nozzlemen }: ManualEntryDialogPro
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || !formData.nozzlemanId || calculateTotalSales() === 0}
+              disabled={loading || !formData.nozzlemanId}
               className="bg-orange-600 hover:bg-orange-700"
             >
               {loading ? "Creating..." : "Create Manual Entry"}

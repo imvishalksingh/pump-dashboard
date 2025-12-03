@@ -1,4 +1,4 @@
-// components/Tank/QuickDipCalculator.tsx - FULLY FIXED
+// components/Tank/QuickDipCalculator.tsx - FIXED VERSION
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -10,13 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Calculator, Droplet, Loader2, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/utils/api";
@@ -26,17 +19,24 @@ interface TankConfig {
   tankName: string;
   product: "MS" | "HSD";
   capacity: number;
+  currentStock?: number;
+  currentLevel?: number;
 }
 
 interface QuickDipCalculatorProps {
   onCalculationComplete?: (result: any) => void;
+  selectedTank?: TankConfig | null; // ✅ NEW: Pre-selected tank
+  className?: string;
 }
 
-export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculatorProps) => {
+export const QuickDipCalculator = ({ 
+  onCalculationComplete,
+  selectedTank = null,
+  className = ""
+}: QuickDipCalculatorProps) => {
   const [open, setOpen] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [tanks, setTanks] = useState<TankConfig[]>([]);
-  const [fetchingTanks, setFetchingTanks] = useState(false);
 
   const { toast } = useToast();
 
@@ -55,11 +55,24 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
     dipReading: number;
   } | null>(null);
 
+  // ✅ FIXED: Auto-populate selected tank when modal opens
+  useEffect(() => {
+    if (open && selectedTank) {
+      setFormData({
+        tank: selectedTank._id,
+        dipReading: ""
+      });
+      setResult(null);
+    } else if (open) {
+      setFormData({ tank: "", dipReading: "" });
+      setResult(null);
+    }
+  }, [open, selectedTank]);
+
   // Fetch tank configurations
   useEffect(() => {
     const fetchTankConfigs = async () => {
       try {
-        setFetchingTanks(true);
         const response = await api.get("/api/tanks/config");
         setTanks(response.data.tanks || []);
       } catch (error: any) {
@@ -70,24 +83,19 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
           variant: "destructive",
         });
         setTanks([]);
-      } finally {
-        setFetchingTanks(false);
       }
     };
 
-    if (open) {
+    if (open && !selectedTank) {
       fetchTankConfigs();
-      // Reset form when opening
-      setFormData({ tank: "", dipReading: "" });
-      setResult(null);
     }
-  }, [open, toast]);
+  }, [open, selectedTank, toast]);
 
   const calculateQuantity = async () => {
     if (!formData.tank || !formData.dipReading) {
       toast({
         title: "Missing fields",
-        description: "Please select a tank and enter dip reading",
+        description: "Please enter dip reading",
         variant: "destructive",
       });
       return;
@@ -103,7 +111,7 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
       return;
     }
 
-    // Validate dip reading range (typical range for these formulas)
+    // Validate dip reading range
     if (dip > 200) {
       toast({
         title: "Unusual dip reading",
@@ -137,7 +145,6 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
 
       setResult(calculationResult);
 
-      // Callback if provided
       if (onCalculationComplete) {
         onCalculationComplete(calculationResult);
       }
@@ -166,17 +173,23 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
       [field]: value
     }));
 
-    // Clear result when changing inputs
     if (result) {
       setResult(null);
     }
   };
 
   const resetForm = () => {
-    setFormData({
-      tank: "",
-      dipReading: "",
-    });
+    if (selectedTank) {
+      setFormData({
+        tank: selectedTank._id,
+        dipReading: "",
+      });
+    } else {
+      setFormData({
+        tank: "",
+        dipReading: "",
+      });
+    }
     setResult(null);
   };
 
@@ -186,7 +199,7 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
     }
   };
 
-  const selectedTank = tanks.find(tank => tank._id === formData.tank);
+  const selectedTankObj = tanks.find(tank => tank._id === formData.tank) || selectedTank;
 
   const getFormulaDescription = (product: "MS" | "HSD") => {
     return product === "HSD" 
@@ -200,7 +213,7 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
       if (!isOpen) resetForm();
     }}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" className={className}>
           <Calculator className="w-4 h-4 mr-2" />
           Quick Calculate
         </Button>
@@ -211,39 +224,56 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
             <Calculator className="h-5 w-5 text-blue-600" />
             Quick Dip Calculator
           </DialogTitle>
+          {selectedTank && (
+            <p className="text-sm text-muted-foreground mt-1">
+              For: <span className="font-semibold">{selectedTank.tankName}</span>
+            </p>
+          )}
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
-          {/* Tank Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="calculator-tank">Select Tank</Label>
-            <Select 
-              value={formData.tank} 
-              onValueChange={(value) => handleChange("tank", value)}
-              disabled={fetchingTanks || tanks.length === 0}
-            >
-              <SelectTrigger id="calculator-tank">
-                <SelectValue placeholder={
-                  fetchingTanks ? "Loading tanks..." : 
-                  tanks.length === 0 ? "No tanks available" : "Select tank"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {tanks.map((tank) => (
-                  <SelectItem key={tank._id} value={tank._id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{tank.tankName}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {tank.product} • {tank.capacity.toLocaleString()}L
-                      </span>
+          {/* ✅ AUTO-SELECTED TANK DISPLAY */}
+          {formData.tank && selectedTankObj ? (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{selectedTankObj.tankName}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {selectedTankObj.product} • Capacity: {selectedTankObj.capacity.toLocaleString()}L
+                  </div>
+                  {selectedTankObj.currentStock && (
+                    <div className="text-xs text-green-600 mt-1">
+                      Current Stock: {selectedTankObj.currentStock}L ({selectedTankObj.currentLevel}%)
                     </div>
-                  </SelectItem>
+                  )}
+                </div>
+                <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                  Selected
+                </div>
+              </div>
+              <input type="hidden" name="tank" value={formData.tank} />
+            </div>
+          ) : (
+            /* Manual tank selection if no pre-selected tank */
+            <div className="space-y-2">
+              <Label htmlFor="calculator-tank">Select Tank</Label>
+              <select 
+                className="w-full p-2 border rounded-md"
+                value={formData.tank} 
+                onChange={(e) => handleChange("tank", e.target.value)}
+                disabled={tanks.length === 0}
+              >
+                <option value="">Select tank</option>
+                {tanks.map((tank) => (
+                  <option key={tank._id} value={tank._id}>
+                    {tank.tankName} - {tank.product} ({tank.capacity}L)
+                  </option>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
+              </select>
+            </div>
+          )}
 
-          {/* Dip Reading - UPDATED TO CENTIMETERS */}
+          {/* Dip Reading */}
           <div className="space-y-2">
             <Label htmlFor="calculator-dip">Dip Reading (centimeters)</Label>
             <div className="flex gap-2">
@@ -273,13 +303,13 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
                 <span className="ml-2">Calculate</span>
               </Button>
             </div>
-            {selectedTank && (
+            {selectedTankObj && (
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  Product: {selectedTank.product} • Capacity: {selectedTank.capacity.toLocaleString()}L
+                  Product: {selectedTankObj.product} • Capacity: {selectedTankObj.capacity.toLocaleString()}L
                 </p>
                 <p className="text-xs text-blue-600 font-medium">
-                  {getFormulaDescription(selectedTank.product)}
+                  {getFormulaDescription(selectedTankObj.product as "MS" | "HSD")}
                 </p>
               </div>
             )}
@@ -318,11 +348,6 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
                     {result.volumeLiters.toLocaleString()} Liters
                   </div>
                 </div>
-                
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">Tank Capacity:</span>
-                  <div className="font-medium">{result.capacity.toLocaleString()}L</div>
-                </div>
               </div>
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -331,82 +356,6 @@ export const QuickDipCalculator = ({ onCalculationComplete }: QuickDipCalculator
               </div>
             </div>
           )}
-
-          {/* Quick Actions */}
-          {result && (
-            <div className="flex gap-2 pt-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(result.volumeLiters.toString());
-                  toast({
-                    title: "Copied!",
-                    description: "Volume copied to clipboard",
-                  });
-                }}
-              >
-                Copy Volume
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  const resultText = `Tank: ${result.tankName}\nDip: ${result.dipReading}cm\nVolume: ${result.volumeLiters.toLocaleString()}L\nLevel: ${result.remainingPercentage}%`;
-                  navigator.clipboard.writeText(resultText);
-                  toast({
-                    title: "Copied!",
-                    description: "Full result copied to clipboard",
-                  });
-                }}
-              >
-                Copy All
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={resetForm}
-              >
-                New Calculation
-              </Button>
-            </div>
-          )}
-
-          {/* Information Panel */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-blue-800">Calculation Method</p>
-                <p className="text-xs text-blue-700">
-                  This calculator uses mathematical formulas based on tank type:
-                </p>
-                <ul className="text-xs text-blue-700 list-disc list-inside space-y-1">
-                  <li><strong>MS (Petrol):</strong> 496.8 × formula</li>
-                  <li><strong>HSD (Diesel):</strong> 671.8 × formula</li>
-                </ul>
-                <p className="text-xs text-blue-700 mt-1">
-                  Formula: constant × 10000 × (acos(1 - dip/100) - ((1 - dip/100) × √(1 - (1 - dip/100)²))) / 1000
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Example Values */}
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
-            <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-medium text-amber-800">Example Values (HSD Tank)</p>
-                <div className="text-xs text-amber-700 grid grid-cols-2 gap-1 mt-1">
-                  <span>138.60 cm → 15,607 L</span>
-                  <span>124.90 cm → 13,863 L</span>
-                  <span>112.40 cm → 12,214 L</span>
-                  <span>99.60 cm → 10,499 L</span>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </DialogContent>
     </Dialog>
