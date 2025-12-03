@@ -1183,7 +1183,7 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
       <div className="mb-6">
         <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
           <Zap className="h-5 w-5 text-purple-600" />
-          Level 2: Payment Methods
+          Payment Methods
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <PaymentCard
@@ -1359,7 +1359,7 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
         <CardHeader className="bg-pink-50 pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Wallet className="h-5 w-5 text-pink-600" />
-            Level 3: Cash in Hand
+            Cash in Hand
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -2217,7 +2217,7 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
                     <div className="border-b pb-4">
                       <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
                         <BarChart3 className="h-5 w-5 text-blue-600" />
-                        Level 1: Fuel & Meter Readings
+                        Fuel & Meter Readings
                       </h3>
                       <Level1FuelSales shift={shift} />
                     </div>
