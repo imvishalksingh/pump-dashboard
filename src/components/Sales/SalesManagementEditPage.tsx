@@ -2264,18 +2264,6 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button 
-                    onClick={() => {
-                      setSearchTerm("");
-                      setStatusFilter("all");
-                      setDateFilter("");
-                      setNozzlemanFilter("all");
-                    }} 
-                    variant="outline"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Clear Filters
-                  </Button>
                   
                   {/* START NEW SHIFT BUTTON - Only shows when a specific nozzleman is selected */}
                   {nozzlemanFilter !== "all" && nozzlemen.find(n => n._id === nozzlemanFilter) && (
@@ -2293,35 +2281,8 @@ const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman,
                     </Button>
                   )}
                   
-                  {/* QUICK START ALL NOZZLEMEN - For admin convenience */}
-                  <Button 
-                    onClick={() => {
-                      // Show a dialog to select which nozzleman to start shift for
-                      toast({
-                        title: "Select Nozzleman",
-                        description: "Please select a nozzleman from the cards above to start a shift",
-                      });
-                    }}
-                    variant="outline"
-                  >
-                    <FilePlus className="h-4 w-4 mr-2" />
-                    Quick Start Shift
-                  </Button>
                 </div>
 
-                {/* Help Text */}
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg max-w-lg">
-                  <h4 className="font-medium text-blue-700 mb-2 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    How to start a new shift:
-                  </h4>
-                  <ul className="text-sm text-blue-600 text-left space-y-1">
-                    <li>1. Select a nozzleman from the profile cards above</li>
-                    <li>2. If no shifts exist, you'll see the "Start New Shift" button</li>
-                    <li>3. Admin/Manager can start shifts for any nozzleman</li>
-                    <li>4. Once started, nozzleman can record sales in real-time</li>
-                  </ul>
-                </div>
               </div>
             </CardContent>
           </Card>
