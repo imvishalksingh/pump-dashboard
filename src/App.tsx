@@ -24,7 +24,7 @@ import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
 import { PumpNozzleManagementPage } from "./pages/modules/PumpNozzleManagementPage";
 import { FuelStockPage } from "./pages/modules/FuelStockPage";
-import { SalesManagementPage } from "./pages/modules/SalesManagementPage";
+// import { SalesManagementPage } from "./pages/modules/SalesManagementPage";
 import CreditCustomerPage from "./pages/modules/CreditCustomerPage";
 import ExpenseCashPage from "./pages/modules/ExpenseCashPage";
 import { PriceProductPage } from "./pages/modules/PriceProductPage";
@@ -118,9 +118,9 @@ const AppContent = () => {
                       <Route path="/notifications" element={<NotificationsPage />} />
                       <Route path="/reports-analytics" element={<ReportsPage />} />
                       <Route  path="/backup-management" element={<BackupManagement />} />
-                      <Route path="/sales-management/overview" element={<SalesManagementPage />} />
+                      {/* <Route path="/sales-management/overview" element={<SalesManagementPage />} /> */}
                       <Route path="/sales-management/edit" element={<SalesManagementEditPage />} />
-                      <Route path="/sales-management" element={<Navigate to="/sales-management/overview" replace />} />
+                      {/* <Route path="/sales-management" element={<Navigate to="/sales-management/overview" replace />} /> */}
 
                       {/* Catch-all route */}
                       <Route path="*" element={<NotFound />} />

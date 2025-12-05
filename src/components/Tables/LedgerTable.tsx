@@ -1,7 +1,24 @@
-// components/Tables/LedgerTable.tsx - UPDATED
+// components/Tables/LedgerTable.tsx - FIXED VERSION
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { LedgerEntry } from "@/types/ledger";
+import { format } from "date-fns";
+
+interface LedgerEntry {
+  _id: string;
+  customer?: {
+    _id?: string;
+    name?: string;
+    mobile?: string;
+  };
+  type?: string;
+  amount?: number;
+  balance?: number;
+  balanceAfter?: number;
+  description?: string;
+  reference?: string;
+  transactionDate?: string;
+  createdAt?: string;
+}
 
 interface LedgerTableProps {
   entries: LedgerEntry[];
@@ -9,35 +26,78 @@ interface LedgerTableProps {
 }
 
 export const LedgerTable = ({ entries, loading = false }: LedgerTableProps) => {
-  const getTypeVariant = (type: string) => {
-    switch (type) {
-      case "Payment": return "default";
-      case "Sale": return "secondary";
-      case "Adjustment": return "outline";
-      default: return "outline";
+  // Safely format number
+  const formatNumber = (value: number | undefined | null): string => {
+    if (value === undefined || value === null) return "0.00";
+    return value.toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // Safely get date
+  const formatDate = (dateString: string | undefined | null): string => {
+    if (!dateString) return "N/A";
+    try {
+      return format(new Date(dateString), 'dd MMM yyyy HH:mm');
+    } catch (error) {
+      return "Invalid Date";
     }
   };
 
-  const getAmountColor = (type: string, amount: number) => {
-    if (type === "Payment") return "text-green-600";
-    return "text-blue-600";
+  // Safely get customer name
+  const getCustomerName = (customer: any): string => {
+    if (!customer) return "Unknown Customer";
+    return customer.name || "Unknown Customer";
   };
 
-  const getAmountPrefix = (type: string) => {
-    return type === "Payment" ? "-" : "+";
+  const getTypeBadge = (type: string | undefined) => {
+    if (!type) return null;
+
+    const variants: Record<string, string> = {
+      "Sale": "bg-blue-100 text-blue-800",
+      "Payment": "bg-green-100 text-green-800",
+      "Adjustment": "bg-yellow-100 text-yellow-800",
+      "Credit Note": "bg-purple-100 text-purple-800",
+      "Debit Note": "bg-orange-100 text-orange-800",
+      "Interest": "bg-red-100 text-red-800",
+      "Opening Balance": "bg-gray-100 text-gray-800"
+    };
+
+    return (
+      <Badge className={`${variants[type] || 'bg-gray-100 text-gray-800'} font-normal`}>
+        {type}
+      </Badge>
+    );
+  };
+
+  const getAmountColor = (type: string | undefined, amount: number | undefined) => {
+    if (!type || !amount) return "";
+    
+    if (type === "Payment") return "text-green-600 font-medium";
+    if (type === "Sale") return "text-red-600 font-medium";
+    return "text-gray-700 font-medium";
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         <span className="ml-2">Loading ledger entries...</span>
       </div>
     );
   }
 
+  if (entries.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">No ledger entries found.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -45,49 +105,51 @@ export const LedgerTable = ({ entries, loading = false }: LedgerTableProps) => {
             <TableHead>Customer</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Balance</TableHead>
+            <TableHead className="text-right">Amount (₹)</TableHead>
+            <TableHead className="text-right">Balance (₹)</TableHead>
             <TableHead>Reference</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {entries.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                No ledger entries found. Record payments or sales to see entries here.
-              </TableCell>
-            </TableRow>
-          ) : (
-            entries.map((entry) => (
+          {entries.map((entry) => {
+            const displayDate = formatDate(entry.transactionDate || entry.createdAt);
+            const customerName = getCustomerName(entry.customer);
+            const amount = entry.amount || 0;
+            const balance = entry.balanceAfter || entry.balance || 0;
+            
+            return (
               <TableRow key={entry._id}>
-                <TableCell>
-                  {new Date(entry.createdAt).toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </TableCell>
-                <TableCell className="font-medium">
-                  {entry.customer?.name || entry.customerName || 'Unknown'}
+                <TableCell className="whitespace-nowrap">
+                  {displayDate}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={getTypeVariant(entry.type)}>
-                    {entry.type}
-                  </Badge>
+                  <div className="font-medium">{customerName}</div>
+                  {entry.customer?.mobile && (
+                    <div className="text-sm text-gray-500">{entry.customer.mobile}</div>
+                  )}
                 </TableCell>
-                <TableCell>{entry.description}</TableCell>
-                <TableCell className={`font-semibold ${getAmountColor(entry.type, entry.amount)}`}>
-                  {getAmountPrefix(entry.type)}₹{Math.abs(entry.amount).toLocaleString()}
+                <TableCell>
+                  {getTypeBadge(entry.type)}
                 </TableCell>
-                <TableCell className="font-medium">
-                  ₹{entry.balance.toLocaleString()}
+                <TableCell className="max-w-xs">
+                  <div className="truncate">
+                    {entry.description || "No description"}
+                  </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {entry.reference || '-'}
+                <TableCell className={`text-right ${getAmountColor(entry.type, entry.amount)}`}>
+                  {entry.type === "Payment" ? "+" : ""}₹{formatNumber(amount)}
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  ₹{formatNumber(balance)}
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm text-gray-500">
+                    {entry.reference || "N/A"}
+                  </div>
                 </TableCell>
               </TableRow>
-            ))
-          )}
+            );
+          })}
         </TableBody>
       </Table>
     </div>

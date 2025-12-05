@@ -1,4 +1,4 @@
-// pages/CreditCustomerPage.tsx - FIXED
+// CreditCustomerPage.tsx - FIXED WITH PROPER CUSTOMER INTERFACE
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/Shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ interface Customer {
   email?: string;
   creditLimit: number;
   balance: number;
+  currentBalance?: number; // Added to match backend model
   address?: string;
   status: string;
   createdAt: string;
@@ -54,26 +55,42 @@ export default function CreditCustomerPage() {
     fetchData();
   }, [refreshTrigger]);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [customersRes, ledgerRes] = await Promise.all([
-        api.get("/api/customers"),
-        api.get("/api/customers/ledger/all")
-      ]);
-      setCustomers(customersRes.data);
-      setLedgerEntries(ledgerRes.data);
-    } catch (error: any) {
-      console.error("Failed to fetch data:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to fetch data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // In CreditCustomerPage.tsx - Update the fetchData function
+const fetchData = async () => {
+  try {
+    setLoading(true);
+    const [customersRes, ledgerRes] = await Promise.all([
+      api.get("/api/customers"),
+      api.get("/api/customers/ledger/all")
+    ]);
+    
+    // Ensure customers have proper balance field
+    const formattedCustomers = customersRes.data.map((customer: any) => ({
+      ...customer,
+      balance: customer.currentBalance || customer.balance || 0
+    }));
+    
+    // Ensure ledger entries have all required fields
+    const formattedLedgerEntries = ledgerRes.data.map((entry: any) => ({
+      ...entry,
+      amount: entry.amount || 0,
+      balance: entry.balance || 0,
+      balanceAfter: entry.balanceAfter || entry.balance || 0
+    }));
+    
+    setCustomers(formattedCustomers);
+    setLedgerEntries(formattedLedgerEntries);
+  } catch (error: any) {
+    console.error("Failed to fetch data:", error);
+    toast({
+      title: "Error",
+      description: error.response?.data?.message || "Failed to fetch data",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
@@ -136,65 +153,65 @@ export default function CreditCustomerPage() {
   };
 
   const handleRecordPayment = async (paymentData: any) => {
-  try {
-    console.log("🔵 START Payment Process");
-    console.log("Payment Data:", paymentData);
-    
-    let customerId: string;
+    try {
+      console.log("🔵 START Payment Process");
+      console.log("Payment Data:", paymentData);
+      
+      let customerId: string;
 
-    if (paymentData.customerId) {
-      customerId = paymentData.customerId;
-      console.log("🔵 Using customerId from paymentData:", customerId);
-    } else if (selectedCustomer) {
-      customerId = selectedCustomer._id;
-      console.log("🔵 Using selectedCustomer:", selectedCustomer);
-    } else {
-      console.log("🔴 No customer selected");
+      if (paymentData.customerId) {
+        customerId = paymentData.customerId;
+        console.log("🔵 Using customerId from paymentData:", customerId);
+      } else if (selectedCustomer) {
+        customerId = selectedCustomer._id;
+        console.log("🔵 Using selectedCustomer:", selectedCustomer);
+      } else {
+        console.log("🔴 No customer selected");
+        toast({
+          title: "Error",
+          description: "No customer selected",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const cleanPayload = {
+        amount: Number(paymentData.amount),
+        paymentDate: paymentData.paymentDate,
+        notes: paymentData.notes
+      };
+
+      console.log("🔵 Sending to API - URL:", `/api/customers/${customerId}/payment`);
+      console.log("🔵 Payload:", cleanPayload);
+
+      const response = await api.post(`/api/customers/${customerId}/payment`, cleanPayload);
+      console.log("🟢 API Response:", response.data);
+
+      toast({
+        title: "Success",
+        description: "Payment recorded successfully",
+      });
+      
+      console.log("🟢 Closing modal and refreshing...");
+      setShowPaymentModal(false);
+      setSelectedCustomer(null);
+      handleRefresh();
+      
+    } catch (error: any) {
+      console.error("🔴 Payment Error:", error);
+      console.log("🔴 Error Response:", error.response);
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error ||
+                          "Failed to record payment";
+      
       toast({
         title: "Error",
-        description: "No customer selected",
+        description: errorMessage,
         variant: "destructive",
       });
-      return;
     }
-
-    const cleanPayload = {
-      amount: Number(paymentData.amount),
-      paymentDate: paymentData.paymentDate,
-      notes: paymentData.notes
-    };
-
-    console.log("🔵 Sending to API - URL:", `/api/customers/${customerId}/payment`);
-    console.log("🔵 Payload:", cleanPayload);
-
-    const response = await api.post(`/api/customers/${customerId}/payment`, cleanPayload);
-    console.log("🟢 API Response:", response.data);
-
-    toast({
-      title: "Success",
-      description: "Payment recorded successfully",
-    });
-    
-    console.log("🟢 Closing modal and refreshing...");
-    setShowPaymentModal(false);
-    setSelectedCustomer(null);
-    handleRefresh();
-    
-  } catch (error: any) {
-    console.error("🔴 Payment Error:", error);
-    console.log("🔴 Error Response:", error.response);
-    
-    const errorMessage = error.response?.data?.message || 
-                        error.response?.data?.error ||
-                        "Failed to record payment";
-    
-    toast({
-      title: "Error",
-      description: errorMessage,
-      variant: "destructive",
-    });
-  }
-};
+  };
 
   const handlePaymentClick = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -223,7 +240,7 @@ export default function CreditCustomerPage() {
     }
   };
 
-  const totalOutstanding = customers.reduce((sum, c) => sum + c.balance, 0);
+  const totalOutstanding = customers.reduce((sum, c) => sum + (c.balance || 0), 0);
   const activeCustomers = customers.filter(c => c.status === "Active").length;
 
   return (

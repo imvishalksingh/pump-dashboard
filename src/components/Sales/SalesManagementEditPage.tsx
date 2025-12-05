@@ -1,4 +1,4 @@
-// SalesManagementEditPage.tsx - COMPLETE UPDATED WITH SYNC INTEGRATION
+// SalesManagementEditPage.tsx - COMPLETE UPDATED VERSION WITH QUICK START SHIFT
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PageHeader } from "@/components/Shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,6 +111,7 @@ interface Shift {
   notes?: string;
   auditNotes?: string;
   isManualEntry: boolean;
+  isSimpleStart?: boolean; // NEW FIELD
   createdAt: string;
   updatedAt: string;
   cashSalesRecords?: CashRecord[];
@@ -217,6 +218,10 @@ export const SalesManagementEditPage = () => {
   const [nozzlemanFilter, setNozzlemanFilter] = useState("all");
   const { toast } = useToast();
 
+  // Quick start loading states
+  const [quickStarting, setQuickStarting] = useState<string | null>(null);
+  const [quickStartingMultiple, setQuickStartingMultiple] = useState(false);
+
   // Calculator states
   const [activeCalculator, setActiveCalculator] = useState<{
     type: 'cash' | 'phonepe' | 'pos' | 'fuel' | 'testing' | 'expenses' | 'credit';
@@ -288,16 +293,233 @@ export const SalesManagementEditPage = () => {
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
 
+// Update startNewShiftAutomatically function
+const startNewShiftAutomatically = async (nozzleman: Nozzleman) => {
+  try {
+    setSaving(true);
+    
+    // Format date and time properly
+    const now = new Date();
+    const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const time = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+    
+    console.log("📅 Formatted date:", date);
+    console.log("⏰ Formatted time:", time);
+
+    const shiftData = {
+      nozzlemanId: nozzleman._id,
+      date: date,
+      startTime: time,
+      notes: `Auto-started shift for ${nozzleman.name}`,
+      isSimpleStart: true,
+      cashCollected: 0,
+      phonePeSales: 0,
+      posSales: 0,
+      otpSales: 0,
+      creditSales: 0,
+      fuelDispensed: 0,
+      testingFuel: 0,
+      expenses: 0,
+      cashDeposit: 0,
+      cashInHand: 0
+    };
+
+    console.log("🤖 Auto-starting shift data:", shiftData);
+
+    const response = await api.post("/api/shifts/manual-entry", shiftData);
+    
+    if (response.data.success === true || response.status === 201) {
+      toast({
+        title: "✅ Success",
+        description: `New shift auto-started for ${nozzleman.name}`,
+      });
+      await fetchAllData();
+    } else {
+      throw new Error(response.data.message || "Failed to start shift");
+    }
+    
+  } catch (error: any) {
+    console.error("❌ Failed to auto-start shift:", error);
+    console.error("❌ Error details:", error.response?.data);
+    
+    let errorMessage = "Failed to start shift";
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    toast({
+      title: "Error",
+      description: errorMessage,
+      variant: "destructive",
+    });
+    
+    throw error;
+  } finally {
+    setSaving(false);
+  }
+};
+
+// Update startNewShift function (for "Start with Options")
+const startNewShift = async () => {
+  try {
+    setSaving(true);
+    
+    if (!startNewShiftDialog.nozzleman) {
+      toast({
+        title: "Error",
+        description: "Nozzleman not selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Format time to HH:MM
+    const timeParts = newShiftForm.time.split(':');
+    const formattedTime = `${timeParts[0]}:${timeParts[1] || '00'}`;
+
+    const shiftData = {
+      nozzlemanId: newShiftForm.nozzlemanId,
+      date: newShiftForm.date,
+      startTime: formattedTime,
+      notes: newShiftForm.notes || `Shift started by admin for ${startNewShiftDialog.nozzleman.name}`,
+      isSimpleStart: true,
+      cashCollected: 0,
+      phonePeSales: 0,
+      posSales: 0,
+      otpSales: 0,
+      creditSales: 0,
+      fuelDispensed: 0,
+      testingFuel: 0,
+      expenses: 0,
+      cashDeposit: 0,
+      cashInHand: 0
+    };
+
+    console.log("📤 Starting shift with data:", shiftData);
+
+    const response = await api.post("/api/shifts/manual-entry", shiftData);
+    
+    if (response.data.success === true || response.status === 201) {
+      toast({
+        title: "Success",
+        description: `New shift started for ${startNewShiftDialog.nozzleman.name}`,
+      });
+
+      await fetchAllData();
+      setStartNewShiftDialog({ open: false, nozzleman: null });
+    } else {
+      throw new Error(response.data.message || "Failed to start shift");
+    }
+    
+  } catch (error: any) {
+    console.error("❌ Failed to start new shift:", error);
+    console.error("❌ Error response:", error.response?.data);
+    
+    let errorMessage = "Failed to start new shift";
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    } else if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    toast({
+      title: "Error",
+      description: errorMessage,
+      variant: "destructive",
+    });
+  } finally {
+    setSaving(false);
+  }
+};
+
+  // NEW FUNCTION: Quick Start with Confirmation
+  const startNewShiftWithConfirmation = async (nozzleman: Nozzleman) => {
+    if (!confirm(`Start new shift for ${nozzleman.name} now?\n\nDate: ${new Date().toLocaleDateString()}\nTime: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)) {
+      return;
+    }
+    
+    await startNewShiftAutomatically(nozzleman);
+  };
+
+  // NEW FUNCTION: Handle Quick Start Click
+  const handleQuickStart = async (nozzlemanId: string) => {
+    if (quickStarting) return;
+    
+    setQuickStarting(nozzlemanId);
+    try {
+      const nozzleman = nozzlemen.find(n => n._id === nozzlemanId);
+      if (nozzleman) {
+        await startNewShiftAutomatically(nozzleman);
+      }
+    } catch (error) {
+      // Error already handled in function
+    } finally {
+      setQuickStarting(null);
+    }
+  };
+
+  // NEW FUNCTION: Start All Inactive Nozzlemen
+  const startAllInactiveNozzlemen = async () => {
+    if (quickStartingMultiple) return;
+    
+    const inactiveNozzlemen = nozzlemen
+      .filter(n => !hasActiveShift(n._id))
+      .map(n => ({ id: n._id, name: n.name }));
+    
+    if (inactiveNozzlemen.length === 0) {
+      toast({
+        title: "No Inactive Nozzlemen",
+        description: "All nozzlemen already have active shifts",
+        variant: "default",
+      });
+      return;
+    }
+    
+    if (!confirm(`Start shifts for ${inactiveNozzlemen.length} inactive nozzlemen?\n\n• ${inactiveNozzlemen.map(n => n.name).join('\n• ')}`)) {
+      return;
+    }
+    
+    setQuickStartingMultiple(true);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    try {
+      for (const nozzleman of inactiveNozzlemen) {
+        try {
+          const nozzlemanObj = nozzlemen.find(n => n._id === nozzleman.id);
+          if (nozzlemanObj) {
+            await startNewShiftAutomatically(nozzlemanObj);
+            successCount++;
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Failed to start shift for ${nozzleman.name}:`, error);
+        }
+      }
+      
+      toast({
+        title: "Bulk Start Complete",
+        description: `Started ${successCount} shifts, ${errorCount} failed`,
+        variant: successCount > 0 ? "default" : "destructive",
+      });
+      
+    } finally {
+      setQuickStartingMultiple(false);
+    }
+  };
+
   // Keyboard shortcuts for calculator
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!activeCalculator) return;
     
-    // Check if user is typing in an input/textarea
     const isInputFocused = document.activeElement?.tagName === 'INPUT' || 
                            document.activeElement?.tagName === 'TEXTAREA';
     if (isInputFocused) return;
     
-    // Handle calculator keys
     switch(e.key) {
       case '0':
       case '1':
@@ -365,44 +587,83 @@ export const SalesManagementEditPage = () => {
     filterShifts();
   }, [shifts, searchTerm, statusFilter, dateFilter, nozzlemanFilter]);
 
-  const fetchAllData = async () => {
-    try {
-      setLoading(true);
-      const [shiftsRes, nozzlemenRes, pumpsRes, nozzlesRes, customersRes] = await Promise.all([
-        api.get("/api/shifts?limit=500"),
-        api.get("/api/nozzlemen"),
-        api.get("/api/pumps"),
-        api.get("/api/nozzles"),
-        api.get("/api/customers")
-      ]);
-      
-      const shiftsWithRecords = (shiftsRes.data.shifts || []).map((shift: any) => ({
-        ...shift,
-        cashSalesRecords: shift.cashSalesRecords || [],
-        phonePeRecords: shift.phonePeRecords || [],
-        posRecords: shift.posRecords || [],
-        fuelRecords: shift.fuelRecords || [],
-        testingRecords: shift.testingRecords || [],
-        expenseRecords: shift.expenseRecords || [],
-        creditRecords: shift.creditRecords || []
-      }));
-      
-      setShifts(shiftsWithRecords);
-      setNozzlemen(nozzlemenRes.data || []);
-      setPumps(pumpsRes.data || []);
-      setNozzles(nozzlesRes.data || []);
-      setCustomers(customersRes.data || []);
-    } catch (error: any) {
-      console.error("❌ Failed to fetch data:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to fetch data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  // Update the fetchAllData function
+const fetchAllData = async () => {
+  try {
+    setLoading(true);
+    
+    const [shiftsRes, nozzlemenRes, pumpsRes, nozzlesRes, customersRes] = await Promise.all([
+      api.get("/api/shifts?limit=500"),
+      api.get("/api/nozzlemen"),
+      api.get("/api/pumps"),
+      api.get("/api/nozzles"),
+      api.get("/api/customers")
+    ]);
+    
+    console.log("📊 Nozzlemen response:", nozzlemenRes.data);
+    console.log("📊 Shifts response:", shiftsRes.data);
+    
+    // FIX: Handle different response formats
+    let nozzlemenData = [];
+    if (Array.isArray(nozzlemenRes.data)) {
+      nozzlemenData = nozzlemenRes.data;
+    } else if (nozzlemenRes.data && Array.isArray(nozzlemenRes.data.data)) {
+      nozzlemenData = nozzlemenRes.data.data;
+    } else if (nozzlemenRes.data && nozzlemenRes.data.nozzlemen) {
+      nozzlemenData = nozzlemenRes.data.nozzlemen;
     }
-  };
+    
+    let shiftsData = [];
+    if (Array.isArray(shiftsRes.data)) {
+      shiftsData = shiftsRes.data;
+    } else if (shiftsRes.data && Array.isArray(shiftsRes.data.shifts)) {
+      shiftsData = shiftsRes.data.shifts;
+    } else if (shiftsRes.data && shiftsRes.data.data) {
+      shiftsData = Array.isArray(shiftsRes.data.data) ? shiftsRes.data.data : [shiftsRes.data.data];
+    }
+    
+    console.log("✅ Parsed nozzlemen:", nozzlemenData.length);
+    console.log("✅ Parsed shifts:", shiftsData.length);
+    
+    const shiftsWithRecords = shiftsData.map((shift: any) => ({
+      ...shift,
+      cashSalesRecords: shift.cashSalesRecords || [],
+      phonePeRecords: shift.phonePeRecords || [],
+      posRecords: shift.posRecords || [],
+      fuelRecords: shift.fuelRecords || [],
+      testingRecords: shift.testingRecords || [],
+      expenseRecords: shift.expenseRecords || [],
+      creditRecords: shift.creditRecords || []
+    }));
+    
+    setShifts(shiftsWithRecords);
+    setNozzlemen(nozzlemenData);
+    
+    // Handle other data similarly
+    setPumps(Array.isArray(pumpsRes.data) ? pumpsRes.data : pumpsRes.data?.data || []);
+    setNozzles(Array.isArray(nozzlesRes.data) ? nozzlesRes.data : nozzlesRes.data?.data || []);
+    setCustomers(Array.isArray(customersRes.data) ? customersRes.data : customersRes.data?.data || []);
+    
+  } catch (error: any) {
+    console.error("❌ Failed to fetch data:", error);
+    console.error("❌ Error response:", error.response?.data);
+    
+    toast({
+      title: "Error",
+      description: error.response?.data?.message || "Failed to fetch data",
+      variant: "destructive",
+    });
+    
+    // Set empty arrays on error
+    setShifts([]);
+    setNozzlemen([]);
+    setPumps([]);
+    setNozzles([]);
+    setCustomers([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const filterShifts = () => {
     let filtered = shifts;
@@ -521,7 +782,6 @@ export const SalesManagementEditPage = () => {
     const nozzlemanShifts = shifts.filter(shift => shift.nozzleman._id === nozzlemanId);
     if (nozzlemanShifts.length === 0) return null;
     
-    // Sort by start time (newest first)
     nozzlemanShifts.sort((a, b) => 
       new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
@@ -541,53 +801,6 @@ export const SalesManagementEditPage = () => {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       notes: `Shift started by admin for ${nozzleman.name}`
     });
-  };
-
-  const startNewShift = async () => {
-    try {
-      setSaving(true);
-      
-      const shiftData = {
-        nozzlemanId: newShiftForm.nozzlemanId,
-        date: newShiftForm.date,
-        startTime: newShiftForm.time,
-        notes: newShiftForm.notes || `Shift started by admin for ${startNewShiftDialog.nozzleman?.name}`,
-        status: "Active",
-        isSimpleStart: true,
-        cashCollected: 0,
-        phonePeSales: 0,
-        posSales: 0,
-        otpSales: 0,
-        creditSales: 0,
-        fuelDispensed: 0,
-        testingFuel: 0,
-        expenses: 0,
-        cashDeposit: 0,
-        cashInHand: 0
-      };
-
-      console.log("📤 Starting simple shift with data:", shiftData);
-
-      const response = await api.post("/api/shifts/manual-entry", shiftData);
-      
-      toast({
-        title: "Success",
-        description: `New shift started for ${startNewShiftDialog.nozzleman?.name}`,
-      });
-
-      await fetchAllData();
-      setStartNewShiftDialog({ open: false, nozzleman: null });
-      
-    } catch (error: any) {
-      console.error("❌ Failed to start new shift:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || error.response?.data?.message || "Failed to start new shift",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
   };
 
   // Calculator Functions
@@ -651,7 +864,6 @@ export const SalesManagementEditPage = () => {
     try {
       setSaving(true);
       
-      // If it's expenses, we sync them one by one to the Expense collection
       if (activeCalculator.type === 'expenses') {
          if (calculatorRecords.length === 0) return;
 
@@ -674,7 +886,6 @@ export const SalesManagementEditPage = () => {
          });
 
       } else {
-        // For other types (fuel, testing, etc.), keep existing behavior (bulk update shift)
         const apiRecords = calculatorRecords.map(record => {
           const { id, ...rest } = record;
           return rest;
@@ -770,7 +981,6 @@ export const SalesManagementEditPage = () => {
     try {
       setSaving(true);
 
-      // If Credit Sale, sync to Customer Ledger
       if (addRecordDialog.type === 'credit') {
         if (!selectedCustomerId || newRecord.amount <= 0) {
            toast({ 
@@ -784,9 +994,8 @@ export const SalesManagementEditPage = () => {
 
         const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
         
-        // Check credit limit
         const customerBalance = selectedCustomer?.balance || selectedCustomer?.currentBalance || 0;
-const newBalance = customerBalance + Number(newRecord.amount);
+        const newBalance = customerBalance + Number(newRecord.amount);
         if (newBalance > (selectedCustomer?.creditLimit || 0)) {
           toast({
             title: "Credit Limit Exceeded",
@@ -812,7 +1021,6 @@ const newBalance = customerBalance + Number(newRecord.amount);
         });
 
       } else if (addRecordDialog.type === 'expenses') {
-        // For expenses from add dialog
         await api.post('/api/expenses/sync', {
           shiftId: addRecordDialog.shift._id,
           amount: newRecord.amount,
@@ -980,86 +1188,142 @@ const newBalance = customerBalance + Number(newRecord.amount);
     }
   };
 
-  const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman, isSelected: boolean }) => {
-    const stats = getNozzlemanStats(nozzleman._id);
-    const hasActive = hasActiveShift(nozzleman._id);
-    const lastShift = getLastShift(nozzleman._id);
-    
-    return (
-      <Card 
-        className={`cursor-pointer transition-all ${isSelected ? 'border-2 border-blue-500 shadow-md' : 'hover:shadow-sm'} relative`}
-        onClick={() => setNozzlemanFilter(nozzleman._id)}
-      >
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <div className={`p-2 rounded-full ${isSelected ? 'bg-blue-100' : 'bg-gray-100'}`}>
-              <User className={`h-6 w-6 ${isSelected ? 'text-blue-600' : 'text-gray-600'}`} />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold">{nozzleman.name}</h3>
-                  <p className="text-sm text-muted-foreground">{nozzleman.employeeId}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {hasActive && (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      <Power className="h-3 w-3 mr-1" />
-                      Active
-                    </Badge>
-                  )}
-                  {isSelected && (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                      Selected
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              {/* Simple Stats */}
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <div className="text-center">
-                  <p className="text-lg font-bold text-green-600">₹{stats.totalSales.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Total Sales</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-blue-600">{stats.netFuel.toLocaleString()}L</p>
-                  <p className="text-xs text-muted-foreground">Net Fuel</p>
-                </div>
-              </div>
-              
-              {lastShift && (
-                <div className="mt-2 text-xs text-gray-500">
-                  Last shift: {format(parseISO(lastShift.startTime), 'MMM dd')} • {lastShift.status}
-                </div>
-              )}
-            </div>
+const NozzlemanProfileCard = ({ nozzleman, isSelected }: { nozzleman: Nozzleman, isSelected: boolean }) => {
+  const stats = getNozzlemanStats(nozzleman._id);
+  const hasActive = hasActiveShift(nozzleman._id);
+  const lastShift = getLastShift(nozzleman._id);
+  
+  return (
+    <Card 
+      className={`cursor-pointer transition-all h-full min-h-[140px] flex flex-col ${isSelected ? 'border-2 border-blue-500 shadow-md' : 'hover:shadow-sm hover:border-gray-300'}`}
+      onClick={() => setNozzlemanFilter(nozzleman._id)}
+    >
+      <CardContent className="p-4 flex flex-col flex-1">
+        {/* Header Section */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className={`p-2 rounded-full flex-shrink-0 ${isSelected ? 'bg-blue-100' : 'bg-gray-100'}`}>
+            <User className={`h-5 w-5 ${isSelected ? 'text-blue-600' : 'text-gray-600'}`} />
           </div>
           
-          {/* Start New Shift Button - Simple */}
-          {isSelected && !hasActive && (
-            <div className="mt-3 pt-3 border-t">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-sm mb-0.5 text-gray-900 line-clamp-1">
+                  {nozzleman.name}
+                </h3>
+                <p className="text-xs text-gray-500 truncate">
+                  {nozzleman.employeeId}
+                </p>
+              </div>
+              
+              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                {hasActive && (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] px-1.5 py-0 h-5 flex items-center">
+                    <Power className="h-2.5 w-2.5 mr-1" />
+                    Active
+                  </Badge>
+                )}
+                {isSelected && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0 h-5 flex items-center">
+                    Selected
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Section */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="bg-gray-50 rounded-md p-2 text-center">
+            <p className="text-sm font-bold text-green-600 leading-tight">
+              ₹{stats.totalSales.toLocaleString()}
+            </p>
+            <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
+              Total Sales
+            </p>
+          </div>
+          <div className="bg-gray-50 rounded-md p-2 text-center">
+            <p className="text-sm font-bold text-blue-600 leading-tight">
+              {stats.netFuel.toLocaleString()}L
+            </p>
+            <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
+              Net Fuel
+            </p>
+          </div>
+        </div>
+
+        {/* Last Shift Info */}
+        {lastShift && (
+          <div className="text-xs text-gray-500 mb-3 truncate">
+            Last: {format(parseISO(lastShift.startTime), 'MMM dd')} • {lastShift.status}
+          </div>
+        )}
+
+        {/* Quick Start Buttons - Only show if selected and not active */}
+        {isSelected && !hasActive && (
+          <div className="mt-auto pt-3 border-t">
+            <div className="space-y-2">
               <Button
                 variant="default"
                 size="sm"
-                className="w-full bg-green-600 hover:bg-green-700"
+                className="w-full bg-green-600 hover:bg-green-700 h-8 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleQuickStart(nozzleman._id);
+                }}
+                disabled={quickStarting === nozzleman._id || saving}
+              >
+                {quickStarting === nozzleman._id ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-3 w-3 mr-1" />
+                    Quick Start
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-8 text-xs"
                 onClick={(e) => {
                   e.stopPropagation();
                   openStartNewShiftDialog(nozzleman);
                 }}
               >
-                <PlayCircle className="h-4 w-4 mr-2" />
-                Start New Shift
+                <PlayCircle className="h-3 w-3 mr-1" />
+                With Options
               </Button>
-              <p className="text-xs text-gray-500 text-center mt-1">
-                Admin can start shift for this nozzleman
+            </div>
+            <p className="text-[10px] text-gray-400 text-center mt-1.5">
+              Click "Quick Start" for instant shift
+            </p>
+          </div>
+        )}
+        
+        {/* Show message if selected but has active shift */}
+        {isSelected && hasActive && (
+          <div className="mt-auto pt-3 border-t">
+            <div className="text-center">
+              <Badge variant="outline" className="w-full justify-center bg-green-50 text-green-700 border-green-200 text-xs">
+                <Power className="h-3 w-3 mr-1" />
+                Shift Already Active
+              </Badge>
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                View shift details below
               </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
   const Level1FuelSales = ({ shift }: { shift: Shift }) => {
     const isHSD = shift.pump.fuelType === 'Diesel' || shift.pump.fuelType === 'HSD';
@@ -1519,48 +1783,163 @@ const newBalance = customerBalance + Number(newRecord.amount);
         description="Comprehensive shift data management with calculator features"
       />
 
-      {/* Nozzlemen Profile Selector */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Users className="h-5 w-5 text-muted-foreground" />
-          <h3 className="font-medium">Select Nozzleman</h3>
-          <Badge variant="outline" className="ml-2">
-            {nozzlemen.length} nozzlemen
-          </Badge>
+      {/* NEW: Bulk Start Button */}
+      <Card className="mb-6 border-purple-200">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-full">
+                <Zap className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Bulk Shift Operations</h3>
+                <p className="text-sm text-gray-500">
+                  Start shifts for multiple nozzlemen at once
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                onClick={startAllInactiveNozzlemen}
+                className="bg-purple-600 hover:bg-purple-700"
+                disabled={quickStartingMultiple || saving}
+              >
+                {quickStartingMultiple ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Starting All...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-2" />
+                    Start All Inactive Nozzlemen
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+{/* Nozzlemen Profile Selector */}
+<div className="mb-6">
+  <div className="flex items-center gap-2 mb-3">
+    <Users className="h-5 w-5 text-muted-foreground" />
+    <h3 className="font-medium">Select Nozzleman</h3>
+    <Badge variant="outline" className="ml-2">
+      {Array.isArray(nozzlemen) ? nozzlemen.length : 0} nozzlemen
+    </Badge>
+    <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">
+      {Array.isArray(nozzlemen) ? nozzlemen.filter(n => !hasActiveShift(n._id)).length : 0} inactive
+    </Badge>
+  </div>
+  
+  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+    {/* All Nozzlemen Card */}
+    <Card 
+      className={`cursor-pointer transition-all h-full min-h-[140px] flex flex-col ${nozzlemanFilter === "all" ? 'border-2 border-blue-500 shadow-md' : 'hover:shadow-sm'}`}
+      onClick={() => setNozzlemanFilter("all")}
+    >
+      <CardContent className="p-4 flex flex-col flex-1">
+        <div className="flex items-center gap-3 mb-3">
+          <div className={`p-2 rounded-full flex-shrink-0 ${nozzlemanFilter === "all" ? 'bg-blue-100' : 'bg-gray-100'}`}>
+            <Target className={`h-5 w-5 ${nozzlemanFilter === "all" ? 'text-blue-600' : 'text-gray-600'}`} />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-base">All Nozzlemen</h3>
+            <p className="text-sm text-muted-foreground">View all shifts</p>
+          </div>
         </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          <Card 
-            className={`cursor-pointer transition-all ${nozzlemanFilter === "all" ? 'border-2 border-blue-500 shadow-md' : 'hover:shadow-sm'}`}
-            onClick={() => setNozzlemanFilter("all")}
-          >
-            <CardContent className="p-4">
+        {nozzlemanFilter === "all" && (
+          <div className="mt-auto">
+            <Badge variant="outline" className="w-full justify-center bg-blue-50 text-blue-700 border-blue-200">
+              Currently Viewing All
+            </Badge>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+
+    {/* Nozzleman Cards */}
+    {Array.isArray(nozzlemen) && nozzlemen.map((nozzleman) => (
+      <NozzlemanProfileCard 
+        key={nozzleman._id} 
+        nozzleman={nozzleman} 
+        isSelected={nozzlemanFilter === nozzleman._id}
+      />
+    ))}
+  </div>
+</div>
+
+      {/* NEW: Quick Start Panel for Selected Nozzleman */}
+      {nozzlemanFilter !== "all" && nozzlemen.find(n => n._id === nozzlemanFilter) && (
+        <Card className="mb-6 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${nozzlemanFilter === "all" ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                  <Target className={`h-6 w-6 ${nozzlemanFilter === "all" ? 'text-blue-600' : 'text-gray-600'}`} />
+                <div className="p-2 bg-green-100 rounded-full">
+                  <PlayCircle className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">All Nozzlemen</h3>
-                  <p className="text-sm text-muted-foreground">View all shifts</p>
-                  {nozzlemanFilter === "all" && (
-                    <Badge variant="outline" className="mt-1 bg-blue-50 text-blue-700 border-blue-200">
-                      Viewing All
-                    </Badge>
-                  )}
+                  <h3 className="font-semibold">
+                    Quick Start for {nozzlemen.find(n => n._id === nozzlemanFilter)?.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {hasActiveShift(nozzlemanFilter) 
+                      ? "Already has an active shift" 
+                      : "Ready to start new shift instantly"}
+                  </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {nozzlemen.map((nozzleman) => (
-            <NozzlemanProfileCard 
-              key={nozzleman._id} 
-              nozzleman={nozzleman} 
-              isSelected={nozzlemanFilter === nozzleman._id}
-            />
-          ))}
-        </div>
-      </div>
+              <div className="flex gap-2">
+                {!hasActiveShift(nozzlemanFilter) ? (
+                  <>
+                    <Button 
+                      onClick={() => {
+                        const nozzleman = nozzlemen.find(n => n._id === nozzlemanFilter);
+                        if (nozzleman) {
+                          handleQuickStart(nozzleman._id);
+                        }
+                      }}
+                      className="bg-green-600 hover:bg-green-700"
+                      disabled={quickStarting === nozzlemanFilter || saving}
+                    >
+                      {quickStarting === nozzlemanFilter ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-4 w-4 mr-2" />
+                          One-Click Start (No Dialog)
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        const nozzleman = nozzlemen.find(n => n._id === nozzlemanFilter);
+                        if (nozzleman) {
+                          openStartNewShiftDialog(nozzleman);
+                        }
+                      }}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Custom Start
+                    </Button>
+                  </>
+                ) : (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 px-4 py-2">
+                    <Power className="h-4 w-4 mr-2" />
+                    Shift Already Active
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters and Search */}
       <Card className="mb-6">
@@ -1708,7 +2087,6 @@ const newBalance = customerBalance + Number(newRecord.amount);
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Category Select for Expenses */}
             {activeCalculator?.type === 'expenses' && (
               <div className="space-y-1">
                 <Label>Expense Category</Label>
@@ -1827,7 +2205,6 @@ const newBalance = customerBalance + Number(newRecord.amount);
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            {/* Customer Select for Credit Sales */}
             {addRecordDialog.type === 'credit' && (
               <div className="space-y-2">
                 <Label>Select Customer *</Label>
@@ -1838,8 +2215,8 @@ const newBalance = customerBalance + Number(newRecord.amount);
                   <SelectContent>
                     {customers.map(customer => (
                       <SelectItem key={customer._id} value={customer._id}>
-  {customer.name} (₹{(customer.balance || 0).toLocaleString()}/₹{(customer.creditLimit || 0).toLocaleString()})
-</SelectItem>
+                        {customer.name} (₹{(customer.balance || 0).toLocaleString()}/₹{(customer.creditLimit || 0).toLocaleString()})
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1851,7 +2228,6 @@ const newBalance = customerBalance + Number(newRecord.amount);
               </div>
             )}
 
-            {/* Category Select for Expenses */}
             {addRecordDialog.type === 'expenses' && (
               <div className="space-y-2">
                 <Label>Expense Category *</Label>
@@ -2443,6 +2819,12 @@ const newBalance = customerBalance + Number(newRecord.amount);
                               Manual Entry
                             </Badge>
                           )}
+                          {shift.isSimpleStart && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <Zap className="h-3 w-3 mr-1" />
+                              Quick Start
+                            </Badge>
+                          )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
@@ -2527,20 +2909,45 @@ const newBalance = customerBalance + Number(newRecord.amount);
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   
-                  {/* START NEW SHIFT BUTTON - Only shows when a specific nozzleman is selected */}
-                  {nozzlemanFilter !== "all" && nozzlemen.find(n => n._id === nozzlemanFilter) && (
-                    <Button 
-                      onClick={() => {
-                        const selectedNozzleman = nozzlemen.find(n => n._id === nozzlemanFilter);
-                        if (selectedNozzleman) {
-                          openStartNewShiftDialog(selectedNozzleman);
-                        }
-                      }}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <PlayCircle className="h-4 w-4 mr-2" />
-                      Start New Shift for {nozzlemen.find(n => n._id === nozzlemanFilter)?.name}
-                    </Button>
+                  {/* UPDATED: QUICK START BUTTON */}
+                  {nozzlemanFilter !== "all" && nozzlemen.find(n => n._id === nozzlemanFilter) && !hasActiveShift(nozzlemanFilter) && (
+                    <>
+                      <Button 
+                        onClick={() => {
+                          const nozzleman = nozzlemen.find(n => n._id === nozzlemanFilter);
+                          if (nozzleman) {
+                            handleQuickStart(nozzleman._id);
+                          }
+                        }}
+                        className="bg-green-600 hover:bg-green-700"
+                        disabled={quickStarting === nozzlemanFilter || saving}
+                      >
+                        {quickStarting === nozzlemanFilter ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Starting...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="h-4 w-4 mr-2" />
+                            Quick Start for {nozzlemen.find(n => n._id === nozzlemanFilter)?.name}
+                          </>
+                        )}
+                      </Button>
+                      
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          const nozzleman = nozzlemen.find(n => n._id === nozzlemanFilter);
+                          if (nozzleman) {
+                            openStartNewShiftDialog(nozzleman);
+                          }
+                        }}
+                      >
+                        <PlayCircle className="h-4 w-4 mr-2" />
+                        Start with Options
+                      </Button>
+                    </>
                   )}
                   
                 </div>

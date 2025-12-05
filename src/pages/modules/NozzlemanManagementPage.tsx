@@ -47,6 +47,9 @@ export default function NozzlemanManagementPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
 
+  // Ensure nozzlemen is always an array
+  const nozzlemenArray = Array.isArray(nozzlemen) ? nozzlemen : [];
+
   // Check if user has permission to access this page
   useEffect(() => {
     if (user && !canManageNozzlemen) {
@@ -64,33 +67,35 @@ export default function NozzlemanManagementPage() {
       fetchNozzlemen();
     }
   }, [refreshTrigger, canManageNozzlemen]);
-const handleAddNozzleman = async (data: any) => {
-  try {
-    console.log("📝 Adding new nozzleman:", data);
-    
-    // Use the auth context's registerNozzleman function directly
-    const result = await registerNozzlemanAuth(data);
-    
-    if (result.success) {
-      // Refresh the nozzlemen list
-      await fetchNozzlemen();
-      setShowNozzlemanModal(false);
+
+  const handleAddNozzleman = async (data: any) => {
+    try {
+      console.log("📝 Adding new nozzleman:", data);
+      
+      // Use the auth context's registerNozzleman function directly
+      const result = await registerNozzlemanAuth(data);
+      
+      if (result.success) {
+        // Refresh the nozzlemen list
+        await fetchNozzlemen();
+        setShowNozzlemanModal(false);
+        toast({
+          title: "Success",
+          description: "Nozzleman added successfully",
+        });
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      console.error("❌ Failed to add nozzleman:", error);
       toast({
-        title: "Success",
-        description: "Nozzleman added successfully",
+        title: "Error",
+        description: error.message || "Failed to add nozzleman",
+        variant: "destructive",
       });
-    } else {
-      throw new Error(result.message);
     }
-  } catch (error: any) {
-    console.error("❌ Failed to add nozzleman:", error);
-    toast({
-      title: "Error",
-      description: error.message || "Failed to add nozzleman",
-      variant: "destructive",
-    });
-  }
-};
+  };
+
   const handleEditNozzleman = (nozzleman: Nozzleman) => {
     setEditingNozzleman(nozzleman);
     setShowNozzlemanModal(true);
@@ -165,18 +170,18 @@ const handleAddNozzleman = async (data: any) => {
     }
   };
 
-  // Calculate statistics
-  const activeNozzlemen = nozzlemen.filter(n => n.status === "Active").length;
-  const inactiveNozzlemen = nozzlemen.filter(n => n.status === "Inactive").length;
-  const onLeaveNozzlemen = nozzlemen.filter(n => n.status === "On Leave").length;
+  // Calculate statistics with safe array checks
+  const activeNozzlemen = nozzlemenArray.filter(n => n.status === "Active").length;
+  const inactiveNozzlemen = nozzlemenArray.filter(n => n.status === "Inactive").length;
+  const onLeaveNozzlemen = nozzlemenArray.filter(n => n.status === "On Leave").length;
   
-  const avgRating = nozzlemen.length > 0 
-    ? (nozzlemen.reduce((sum, n) => sum + n.rating, 0) / nozzlemen.length).toFixed(1)
+  const avgRating = nozzlemenArray.length > 0 
+    ? (nozzlemenArray.reduce((sum, n) => sum + n.rating, 0) / nozzlemenArray.length).toFixed(1)
     : "0.0";
   
-  const totalShifts = nozzlemen.reduce((sum, n) => sum + n.totalShifts, 0);
-  const totalFuelDispensed = nozzlemen.reduce((sum, n) => sum + n.totalFuelDispensed, 0);
-  const totalCashHandled = nozzlemen.reduce((sum, n) => sum + n.averageCashHandled * n.totalShifts, 0);
+  const totalShifts = nozzlemenArray.reduce((sum, n) => sum + n.totalShifts, 0);
+  const totalFuelDispensed = nozzlemenArray.reduce((sum, n) => sum + n.totalFuelDispensed, 0);
+  const totalCashHandled = nozzlemenArray.reduce((sum, n) => sum + (n.averageCashHandled || 0) * (n.totalShifts || 0), 0);
 
   // Show loading state
   if (loading) {
@@ -236,7 +241,7 @@ const handleAddNozzleman = async (data: any) => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{nozzlemen.length}</div>
+              <div className="text-2xl font-bold">{nozzlemenArray.length}</div>
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{activeNozzlemen} active</span>
                 <span>{inactiveNozzlemen} inactive</span>
@@ -361,7 +366,7 @@ const handleAddNozzleman = async (data: any) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  Nozzlemen List ({nozzlemen.length} total)
+                  Nozzlemen List ({nozzlemenArray.length} total)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -410,7 +415,7 @@ const handleAddNozzleman = async (data: any) => {
                         <CardTitle className="text-sm">Top Performers</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        {nozzlemen
+                        {nozzlemenArray
                           .filter(n => n.status === "Active")
                           .sort((a, b) => b.rating - a.rating)
                           .slice(0, 3)
@@ -437,7 +442,7 @@ const handleAddNozzleman = async (data: any) => {
                         <CardTitle className="text-sm">Most Shifts</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        {nozzlemen
+                        {nozzlemenArray
                           .filter(n => n.status === "Active")
                           .sort((a, b) => b.totalShifts - a.totalShifts)
                           .slice(0, 3)
@@ -461,7 +466,7 @@ const handleAddNozzleman = async (data: any) => {
                         <CardTitle className="text-sm">Fuel Dispensed</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        {nozzlemen
+                        {nozzlemenArray
                           .filter(n => n.status === "Active")
                           .sort((a, b) => b.totalFuelDispensed - a.totalFuelDispensed)
                           .slice(0, 3)
@@ -501,7 +506,7 @@ const handleAddNozzleman = async (data: any) => {
         open={showAssignModal}
         onClose={() => setShowAssignModal(false)}
         onSubmit={handleAssignNozzle}
-        nozzlemen={nozzlemen
+        nozzlemen={nozzlemenArray
           .filter(n => n.status === "Active")
           .map(n => ({
             _id: n._id,

@@ -45,7 +45,7 @@ const getNavItems = (role) => {
       icon: IndianRupee, 
       url: "/sales-management",
       children: [
-        { title: "Sales Overview", icon: Eye, url: "/sales-management/overview" },
+        // { title: "Sales Overview", icon: Eye, url: "/sales-management/overview" },
         { title: "Sales Data", icon: DatabaseBackupIcon, url: "/sales-management/edit" },
       ]
     },
