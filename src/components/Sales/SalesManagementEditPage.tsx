@@ -1632,7 +1632,7 @@ export const SalesManagementEditPage = () => {
             </div>
 
             {/* STATS BAR */}
-            <div className="p-3 bg-white border-b">
+            {/* <div className="p-3 bg-white border-b">
               <div className="grid grid-cols-6 gap-4">
                 <div className="text-center">
                   <div className="text-xs text-gray-500 uppercase font-semibold">Total</div>
@@ -1669,9 +1669,9 @@ export const SalesManagementEditPage = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
 
-            {/* {/* LEDGER TABLE */}
+            {/* LEDGER TABLE */}
             <div className="flex-1 overflow-y-auto p-6" id="ledger-table">
               <Card className="shadow-none border-gray-200">
                 <Table>
@@ -1903,7 +1903,7 @@ export const SalesManagementEditPage = () => {
 
   const Level1FuelSales = ({ shift }: { shift: Shift }) => {
     // If shift has multiple nozzle readings, show them
-    if (shift.nozzleReadings && shift.nozzleReadings.length > 1) {
+    if (shift?.nozzleReadings && shift.nozzleReadings.length > 1) {
       return (
         <div className="mb-6">
           <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
@@ -1916,14 +1916,14 @@ export const SalesManagementEditPage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {shift.nozzleReadings.map((reading: NozzleReading, index: number) => {
-              const fuelDispensed = reading.closingReading 
-                ? reading.closingReading - reading.openingReading
+              const fuelDispensed = reading?.closingReading 
+                ? (reading.closingReading || 0) - (reading.openingReading || 0)
                 : 0;
               
               // Get nozzle details
-              const nozzleInfo = nozzles.find(n => n._id === reading.nozzle?._id);
-              const nozzleNumber = reading.nozzleNumber || nozzleInfo?.number || `Nozzle ${index + 1}`;
-              const fuelType = reading.fuelType || nozzleInfo?.fuelType || "Unknown";
+              const nozzleInfo = nozzles.find(n => n._id === reading?.nozzle?._id);
+              const nozzleNumber = reading?.nozzleNumber || nozzleInfo?.number || `Nozzle ${index + 1}`;
+              const fuelType = reading?.fuelType || nozzleInfo?.fuelType || "Unknown";
               
               return (
                 <Card key={index}>
@@ -1947,14 +1947,14 @@ export const SalesManagementEditPage = () => {
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Opening Reading</Label>
                         <div className="text-2xl font-bold text-gray-700">
-                          {reading.openingReading.toLocaleString()}
+                          {(reading?.openingReading || 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-gray-500">Start of shift</div>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Closing Reading</Label>
                         <div className="text-2xl font-bold text-gray-700">
-                          {reading.closingReading ? reading.closingReading.toLocaleString() : "Not Set"}
+                          {reading?.closingReading ? reading.closingReading.toLocaleString() : "Not Set"}
                         </div>
                         <div className="text-xs text-gray-500">End of shift</div>
                       </div>
@@ -1965,12 +1965,12 @@ export const SalesManagementEditPage = () => {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Opening:</span>
-                          <span className="font-medium">{reading.openingReading.toLocaleString()} L</span>
+                          <span className="font-medium">{(reading?.openingReading || 0).toLocaleString()} L</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Closing:</span>
                           <span className="font-medium">
-                            {reading.closingReading ? reading.closingReading.toLocaleString() + " L" : "-"}
+                            {reading?.closingReading ? reading.closingReading.toLocaleString() + " L" : "-"}
                           </span>
                         </div>
                         <div className="flex justify-between col-span-2 border-t pt-2 mt-2">
@@ -1979,13 +1979,13 @@ export const SalesManagementEditPage = () => {
                             {fuelDispensed.toLocaleString()} L
                           </span>
                         </div>
-                        {reading.rate && reading.rate > 0 && (
+                        {reading?.rate && reading.rate > 0 && (
                           <div className="flex justify-between col-span-2">
                             <span className="text-gray-600">Rate:</span>
                             <span className="font-medium">₹{reading.rate}/L</span>
                           </div>
                         )}
-                        {reading.salesAmount && reading.salesAmount > 0 && (
+                        {reading?.salesAmount && reading.salesAmount > 0 && (
                           <div className="flex justify-between col-span-2 border-t pt-2 mt-2">
                             <span className="text-gray-600">Calculated Sales:</span>
                             <span className="font-bold text-blue-600">
@@ -2009,16 +2009,16 @@ export const SalesManagementEditPage = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {['Petrol', 'Diesel', 'CNG'].map((fuelType) => {
-                  const typeReadings = shift.nozzleReadings.filter(r => r.fuelType === fuelType);
+                  const typeReadings = shift.nozzleReadings.filter(r => r?.fuelType === fuelType);
                   const totalDispensed = typeReadings.reduce((sum, reading) => {
-                    const dispensed = reading.closingReading 
-                      ? reading.closingReading - reading.openingReading
+                    const dispensed = reading?.closingReading 
+                      ? (reading.closingReading || 0) - (reading.openingReading || 0)
                       : 0;
                     return sum + dispensed;
                   }, 0);
                   
                   const totalSales = typeReadings.reduce((sum, reading) => {
-                    return sum + (reading.salesAmount || 0);
+                    return sum + (reading?.salesAmount || 0);
                   }, 0);
                   
                   if (typeReadings.length === 0) return null;
@@ -2054,8 +2054,8 @@ export const SalesManagementEditPage = () => {
                   <div className="text-right">
                     <div className="text-2xl font-bold text-blue-700">
                       {shift.nozzleReadings.reduce((sum, reading) => {
-                        const dispensed = reading.closingReading 
-                          ? reading.closingReading - reading.openingReading
+                        const dispensed = reading?.closingReading 
+                          ? (reading.closingReading || 0) - (reading.openingReading || 0)
                           : 0;
                         return sum + dispensed;
                       }, 0).toLocaleString()} L
@@ -2072,7 +2072,7 @@ export const SalesManagementEditPage = () => {
       );
     }
     
-    // Fallback to original single nozzle display
+    // Fallback to original single nozzle display - WITH NULL CHECKS
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card>
@@ -2087,14 +2087,14 @@ export const SalesManagementEditPage = () => {
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Opening Reading</Label>
                 <div className="text-2xl font-bold text-gray-700">
-                  {shift.startReading.toLocaleString()}
+                  {(shift?.startReading || 0).toLocaleString()}
                 </div>
                 <div className="text-xs text-gray-500">Start of shift</div>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Closing Reading</Label>
                 <div className="text-2xl font-bold text-gray-700">
-                  {shift.endReading.toLocaleString()}
+                  {(shift?.endReading || 0).toLocaleString()}
                 </div>
                 <div className="text-xs text-gray-500">End of shift</div>
               </div>
@@ -2113,15 +2113,17 @@ export const SalesManagementEditPage = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Total Dispensed:</span>
-                <span className="text-xl font-bold text-green-600">{shift.fuelDispensed.toLocaleString()} L</span>
+                <span className="text-xl font-bold text-green-600">{(shift?.fuelDispensed || 0).toLocaleString()} L</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Testing Fuel:</span>
-                <span className="text-xl font-bold text-red-600">{shift.testingFuel.toLocaleString()} L</span>
+                <span className="text-xl font-bold text-red-600">{(shift?.testingFuel || 0).toLocaleString()} L</span>
               </div>
               <div className="flex justify-between items-center pt-3 border-t">
                 <span className="text-gray-800 font-semibold">Net Sales:</span>
-                <span className="text-2xl font-bold text-blue-600">{(shift.fuelDispensed - shift.testingFuel).toLocaleString()} L</span>
+                <span className="text-2xl font-bold text-blue-600">
+                  {((shift?.fuelDispensed || 0) - (shift?.testingFuel || 0)).toLocaleString()} L
+                </span>
               </div>
             </div>
           </CardContent>
@@ -2166,7 +2168,7 @@ export const SalesManagementEditPage = () => {
       return (
         <Card 
           className={`cursor-pointer transition-all ${colorClasses[color]} border h-full`}
-          onClick={() => enterLedgerMode(shift._id, type)}
+          onClick={() => enterLedgerMode(shift?._id || '', type)}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -2180,7 +2182,7 @@ export const SalesManagementEditPage = () => {
                 className="h-6 w-6 p-0"
                 onClick={(e) => {
                   e.stopPropagation();
-                  enterLedgerMode(shift._id, type);
+                  enterLedgerMode(shift?._id || '', type);
                 }}
                 title="View Ledger"
               >
@@ -2188,7 +2190,7 @@ export const SalesManagementEditPage = () => {
               </Button>
             </div>
             <div className={`text-2xl font-bold ${textColors[color]}`}>
-              {isLiters ? `${value.toLocaleString()}L` : `₹${value.toLocaleString()}`}
+              {isLiters ? `${(value || 0).toLocaleString()}L` : `₹${(value || 0).toLocaleString()}`}
             </div>
             <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
               <ArrowRight className="h-3 w-3" />
@@ -2206,10 +2208,10 @@ export const SalesManagementEditPage = () => {
           Payment Methods
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <PaymentCard title="Cash Sales" value={shift.cashCollected || 0} type="cash" color="green" icon={DollarSign} />
-          <PaymentCard title="PhonePe" value={shift.phonePeSales || 0} type="phonepe" color="blue" icon={Smartphone} />
-          <PaymentCard title="POS" value={shift.posSales || 0} type="pos" color="purple" icon={CreditCard} />
-          <PaymentCard title="Credit Sales" value={shift.creditSales || 0} type="credit" color="indigo" icon={Circle} />
+          <PaymentCard title="Cash Sales" value={shift?.cashCollected || 0} type="cash" color="green" icon={DollarSign} />
+          <PaymentCard title="PhonePe" value={shift?.phonePeSales || 0} type="phonepe" color="blue" icon={Smartphone} />
+          <PaymentCard title="POS" value={shift?.posSales || 0} type="pos" color="purple" icon={CreditCard} />
+          <PaymentCard title="Credit Sales" value={shift?.creditSales || 0} type="credit" color="indigo" icon={Circle} />
         </div>
       </div>
     );
@@ -2220,7 +2222,7 @@ export const SalesManagementEditPage = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card 
           className="cursor-pointer bg-orange-50 border-orange-200 hover:bg-orange-100 transition-all h-full"
-          onClick={() => enterLedgerMode(shift._id, 'fuel')}
+          onClick={() => shift?._id && enterLedgerMode(shift._id, 'fuel')}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -2228,17 +2230,17 @@ export const SalesManagementEditPage = () => {
                 <Fuel className="h-4 w-4 text-orange-600" />
                 <Label className="font-medium text-orange-700">Fuel</Label>
               </div>
-              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); enterLedgerMode(shift._id, 'fuel'); }}>
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); shift?._id && enterLedgerMode(shift._id, 'fuel'); }}>
                 <List className="h-3 w-3" />
               </Button>
             </div>
-            <div className="text-2xl font-bold text-orange-600">{(shift.fuelDispensed || 0).toLocaleString()}L</div>
+            <div className="text-2xl font-bold text-orange-600">{(shift?.fuelDispensed || 0).toLocaleString()}L</div>
           </CardContent>
         </Card>
 
         <Card 
           className="cursor-pointer bg-red-50 border-red-200 hover:bg-red-100 transition-all h-full"
-          onClick={() => enterLedgerMode(shift._id, 'testing')}
+          onClick={() => shift?._id && enterLedgerMode(shift._id, 'testing')}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -2246,17 +2248,17 @@ export const SalesManagementEditPage = () => {
                 <TestTube className="h-4 w-4 text-red-600" />
                 <Label className="font-medium text-red-700">Testing</Label>
               </div>
-              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); enterLedgerMode(shift._id, 'testing'); }}>
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); shift?._id && enterLedgerMode(shift._id, 'testing'); }}>
                 <List className="h-3 w-3" />
               </Button>
             </div>
-            <div className="text-2xl font-bold text-red-600">{(shift.testingFuel || 0).toLocaleString()}L</div>
+            <div className="text-2xl font-bold text-red-600">{(shift?.testingFuel || 0).toLocaleString()}L</div>
           </CardContent>
         </Card>
 
         <Card 
           className="cursor-pointer bg-gray-50 border-gray-200 hover:bg-gray-100 transition-all h-full"
-          onClick={() => enterLedgerMode(shift._id, 'expenses')}
+          onClick={() => shift?._id && enterLedgerMode(shift._id, 'expenses')}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -2264,18 +2266,18 @@ export const SalesManagementEditPage = () => {
                 <Wallet className="h-4 w-4 text-gray-600" />
                 <Label className="font-medium text-gray-700">Expenses</Label>
               </div>
-              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); enterLedgerMode(shift._id, 'expenses'); }}>
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); shift?._id && enterLedgerMode(shift._id, 'expenses'); }}>
                 <List className="h-3 w-3" />
               </Button>
             </div>
-            <div className="text-2xl font-bold text-gray-700">₹{(shift.expenses || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-gray-700">₹{(shift?.expenses || 0).toLocaleString()}</div>
             <div className="text-xs text-gray-500 mt-1">Syncs to Expense Page</div>
           </CardContent>
         </Card>
 
         <Card 
           className="cursor-pointer bg-yellow-50 border-yellow-200 hover:bg-yellow-100 transition-all h-full"
-          onClick={() => enterLedgerMode(shift._id, 'cashDeposit')}
+          onClick={() => shift?._id && enterLedgerMode(shift._id, 'cashDeposit')}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -2285,7 +2287,7 @@ export const SalesManagementEditPage = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-yellow-600">
-              ₹{(shift.cashDeposit || 0).toLocaleString()}
+              ₹{(shift?.cashDeposit || 0).toLocaleString()}
             </div>
             <div className="text-xs text-gray-500 mt-1">Syncs to Cash Handovers</div>
           </CardContent>
@@ -2295,7 +2297,12 @@ export const SalesManagementEditPage = () => {
   };
 
   const Level3CashInHand = ({ shift }: { shift: Shift }) => {
-    const netCash = (shift.cashCollected || 0) - (shift.expenses || 0) - (shift.cashDeposit || 0);
+    const cashCollected = shift?.cashCollected || 0;
+    const expenses = shift?.expenses || 0;
+    const cashDeposit = shift?.cashDeposit || 0;
+    const cashInHand = shift?.cashInHand || 0;
+    
+    const netCash = cashCollected - expenses - cashDeposit;
     
     return (
       <Card className="mb-6 border-2 border-pink-200">
@@ -2309,7 +2316,7 @@ export const SalesManagementEditPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-pink-600">
-                ₹{(shift.cashInHand || 0).toLocaleString()}
+                ₹{cashInHand.toLocaleString()}
               </div>
               <div className="text-sm text-gray-500 mt-1">Actual Cash in Hand</div>
             </div>
@@ -2319,15 +2326,15 @@ export const SalesManagementEditPage = () => {
               <div className="text-sm mt-2 space-y-1">
                 <div className="flex justify-between">
                   <span>Cash Sales:</span>
-                  <span className="font-medium">₹{(shift.cashCollected || 0).toLocaleString()}</span>
+                  <span className="font-medium">₹{cashCollected.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-red-600">
                   <span>Expenses:</span>
-                  <span className="font-medium">-₹{(shift.expenses || 0).toLocaleString()}</span>
+                  <span className="font-medium">-₹{expenses.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-yellow-600">
                   <span>Cash Deposit:</span>
-                  <span className="font-medium">-₹{(shift.cashDeposit || 0).toLocaleString()}</span>
+                  <span className="font-medium">-₹{cashDeposit.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between border-t pt-1 mt-1">
                   <span className="font-medium">Expected:</span>
@@ -2337,11 +2344,11 @@ export const SalesManagementEditPage = () => {
             </div>
             
             <div className="text-center">
-              <div className={`text-lg font-bold ${netCash === (shift.cashInHand || 0) ? 'text-green-600' : 'text-red-600'}`}>
-                {netCash === (shift.cashInHand || 0) ? '✓ Balanced' : '⚠ Discrepancy'}
+              <div className={`text-lg font-bold ${netCash === cashInHand ? 'text-green-600' : 'text-red-600'}`}>
+                {netCash === cashInHand ? '✓ Balanced' : '⚠ Discrepancy'}
               </div>
               <div className="text-sm text-gray-500 mt-1">
-                Difference: ₹{Math.abs(netCash - (shift.cashInHand || 0)).toLocaleString()}
+                Difference: ₹{Math.abs(netCash - cashInHand).toLocaleString()}
               </div>
             </div>
           </div>
@@ -2651,60 +2658,72 @@ export const SalesManagementEditPage = () => {
                 );
               }
 
-              // --- VIEW MODE ---
-              const netCash = (shift.cashCollected || 0) - (shift.expenses || 0) - (shift.cashDeposit || 0);
-              return (
-                <Card key={shift._id} className="hover:border-blue-300 transition-colors">
-                  <CardHeader className="bg-gray-50/50 pb-4 border-b">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-xl font-bold flex items-center gap-2">
-                          {shift.shiftId}
-                          <Badge variant={shift.status === 'Active' ? 'default' : 'secondary'} className={shift.status === 'Active' ? 'bg-green-600' : ''}>
-                            {shift.status}
-                          </Badge>
-                        </CardTitle>
-                        <div className="text-sm text-gray-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                          <span className="flex items-center gap-1"><User className="h-3 w-3" /> {shift.nozzleman.name}</span>
-                          <span className="flex items-center gap-1"><Building className="h-3 w-3" /> {shift.pump.name}</span>
-                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {format(parseISO(shift.startTime), 'dd MMM, hh:mm a')}</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <div className="text-right">
-                          <div className="text-sm text-gray-500">Net Cash in Hand</div>
-                          <div className={`text-2xl font-bold ${netCash < 0 ? 'text-red-600' : 'text-green-700'}`}>
-                            ₹{netCash.toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => startEditing(shift)}>
-                            <Edit className="h-3 w-3 mr-1" /> Edit
-                          </Button>
-                          <Button variant="outline" size="sm" className="text-red-600" onClick={() => deleteShift(shift._id)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-6">
-                    {/* LEVEL 1: Fuel & Meter Readings */}
-                    <Level1FuelSales shift={shift} />
-
-                    {/* LEVEL 2: Payment Methods */}
-                    <Level2PaymentMethods shift={shift} />
-
-                    {/* LEVEL 2b: Expenses & Other */}
-                    <Level2ExpensesOther shift={shift} />
-
-                    {/* LEVEL 3: Cash in Hand */}
-                    <Level3CashInHand shift={shift} />
-                  </CardContent>
-                </Card>
-              );
-            })}
+              const cashCollected = shift?.cashCollected || 0;
+    const expenses = shift?.expenses || 0;
+    const cashDeposit = shift?.cashDeposit || 0;
+    const netCash = cashCollected - expenses - cashDeposit;
+    
+    return (
+      <Card key={shift?._id} className="hover:border-blue-300 transition-colors">
+        <CardHeader className="bg-gray-50/50 pb-4 border-b">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                {shift?.shiftId || 'No ID'}
+                <Badge variant={shift?.status === 'Active' ? 'default' : 'secondary'} className={shift?.status === 'Active' ? 'bg-green-600' : ''}>
+                  {shift?.status || 'Unknown'}
+                </Badge>
+              </CardTitle>
+              <div className="text-sm text-gray-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                <span className="flex items-center gap-1">
+                  <User className="h-3 w-3" /> 
+                  {shift?.nozzleman?.name || 'Unknown'}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Building className="h-3 w-3" /> 
+                  {shift?.pump?.name || 'Unknown'}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> 
+                  {shift?.startTime ? format(parseISO(shift.startTime), 'dd MMM, hh:mm a') : 'No date'}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Net Cash in Hand</div>
+                <div className={`text-2xl font-bold ${netCash < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                  ₹{netCash.toLocaleString()}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => shift?._id && startEditing(shift)}>
+                  <Edit className="h-3 w-3 mr-1" /> Edit
+                </Button>
+                <Button variant="outline" size="sm" className="text-red-600" onClick={() => shift?._id && deleteShift(shift._id)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
           </div>
+        </CardHeader>
+        <CardContent className="p-6 space-y-6">
+          {/* LEVEL 1: Fuel & Meter Readings */}
+          <Level1FuelSales shift={shift} />
+
+          {/* LEVEL 2: Payment Methods */}
+          <Level2PaymentMethods shift={shift} />
+
+          {/* LEVEL 2b: Expenses & Other */}
+          <Level2ExpensesOther shift={shift} />
+
+          {/* LEVEL 3: Cash in Hand */}
+          <Level3CashInHand shift={shift} />
+        </CardContent>
+      </Card>
+    );
+  })}
+</div>
         </div>
       )}
     </div>
