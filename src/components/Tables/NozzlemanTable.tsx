@@ -42,43 +42,41 @@ export const NozzlemanTable = ({ onEdit, onDelete, refresh = 0 }: NozzlemanTable
   }, [refresh]);
 
   const fetchNozzlemen = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get("/api/nozzlemen");
-      
-      // Handle different response formats
-      let nozzlemenData = [];
-      const responseData = response.data;
-      
-      console.log("📊 Nozzlemen API response:", responseData);
-      
-      if (Array.isArray(responseData)) {
-        nozzlemenData = responseData;
-      } else if (responseData && Array.isArray(responseData.data)) {
-        nozzlemenData = responseData.data;
-      } else if (responseData && Array.isArray(responseData.nozzlemen)) {
-        nozzlemenData = responseData.nozzlemen;
-      } else if (responseData && responseData.success && Array.isArray(responseData.data)) {
-        nozzlemenData = responseData.data;
-      } else {
-        console.error("Unexpected API response format:", responseData);
-        nozzlemenData = [];
-      }
-      
-      console.log("✅ Parsed nozzlemen data:", nozzlemenData.length);
-      setNozzlemen(nozzlemenData);
-    } catch (error: any) {
-      console.error("❌ Failed to fetch nozzlemen:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to fetch nozzlemen",
-        variant: "destructive",
-      });
-      setNozzlemen([]); // Set empty array on error
-    } finally {
-      setLoading(false);
+  try {
+    setLoading(true);
+    const response = await api.get("/api/nozzlemen");
+    
+    // Handle different response formats
+    let nozzlemenData = [];
+    const responseData = response.data;
+    
+    console.log("Nozzlemen API response format:", responseData);
+    
+    if (Array.isArray(responseData)) {
+      nozzlemenData = responseData;
+    } else if (responseData && responseData.success && Array.isArray(responseData.data)) {
+      nozzlemenData = responseData.data;
+    } else if (responseData && Array.isArray(responseData.data)) {
+      nozzlemenData = responseData.data;
+    } else {
+      console.error("Unexpected API response format:", responseData);
+      nozzlemenData = [];
     }
-  };
+    
+    console.log("Parsed nozzlemen data:", nozzlemenData.length, "records");
+    setNozzlemen(nozzlemenData);
+  } catch (error: any) {
+    console.error("Failed to fetch nozzlemen:", error);
+    toast({
+      title: "Error",
+      description: error.response?.data?.message || "Failed to fetch nozzlemen",
+      variant: "destructive",
+    });
+    setNozzlemen([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const deleteNozzleman = async (id: string) => {
     if (!confirm("Are you sure you want to delete this nozzleman?")) {

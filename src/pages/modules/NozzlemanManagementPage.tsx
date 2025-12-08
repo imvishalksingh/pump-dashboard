@@ -501,20 +501,12 @@ export default function NozzlemanManagementPage() {
         initialData={editingNozzleman || undefined}
         mode={editingNozzleman ? "edit" : "add"}
       />
-
-      <NozzleAssignModal
-        open={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        onSubmit={handleAssignNozzle}
-        nozzlemen={nozzlemenArray
-          .filter(n => n.status === "Active")
-          .map(n => ({
-            _id: n._id,
-            name: n.name,
-            employeeId: n.employeeId
-          }))
-        }
-      />
+        <NozzleAssignModal
+          open={showAssignModal}
+          onClose={() => setShowAssignModal(false)}
+          onSubmit={handleAssignNozzle}
+          nozzlemen={nozzlemenArray || []} // Ensure it's an array
+        />
     </div>
   );
 }

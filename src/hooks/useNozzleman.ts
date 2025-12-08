@@ -26,13 +26,35 @@ export const useNozzleman = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Get all nozzlemen (for admin/supervisor)
-  const fetchNozzlemen = async () => {
+const fetchNozzlemen = async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await api.get('/api/nozzlemen');
-      setNozzlemen(response.data);
-      return response.data;
+      
+      // Handle the response format properly
+      let nozzlemenData = [];
+      const responseData = response.data;
+      
+      console.log("API Response:", responseData); // Debug log
+      
+      if (Array.isArray(responseData)) {
+        // Direct array response
+        nozzlemenData = responseData;
+      } else if (responseData && responseData.success && Array.isArray(responseData.data)) {
+        // Response with {success: true, data: [...]} format
+        nozzlemenData = responseData.data;
+      } else if (responseData && Array.isArray(responseData.data)) {
+        // Alternative format
+        nozzlemenData = responseData.data;
+      } else {
+        console.error("Unexpected API response format:", responseData);
+        nozzlemenData = [];
+      }
+      
+      console.log("Parsed nozzlemen data:", nozzlemenData); // Debug log
+      setNozzlemen(nozzlemenData);
+      return nozzlemenData;
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Failed to fetch nozzlemen';
       setError(errorMessage);

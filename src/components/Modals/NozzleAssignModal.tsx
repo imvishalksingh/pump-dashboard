@@ -1,4 +1,4 @@
-// components/Modals/NozzleAssignModal.tsx - UPDATED VERSION
+// components/Modals/NozzleAssignModal.tsx - UPDATED
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ interface SimplifiedNozzleman {
   _id: string;
   name: string;
   employeeId: string;
+  status: string;
 }
 
 interface Nozzle {
@@ -20,14 +21,14 @@ interface Nozzle {
     _id: string;
     name: string;
   };
-  status: string; // Add status field
+  status: string;
   fuelType: string;
 }
 
 interface Pump {
   _id: string;
   name: string;
-  status: string; // Add status field
+  status: string;
 }
 
 export interface AssignmentFormData {
@@ -51,10 +52,12 @@ export const NozzleAssignModal = ({
   open, 
   onClose, 
   onSubmit, 
-  nozzlemen 
+  nozzlemen = []
 }: NozzleAssignModalProps) => {
   const [nozzles, setNozzles] = useState<Nozzle[]>([]);
   const [pumps, setPumps] = useState<Pump[]>([]);
+  const [alreadyAssignedNozzles, setAlreadyAssignedNozzles] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<AssignmentFormData>({
     nozzleman: "",
     nozzle: "",
@@ -66,39 +69,105 @@ export const NozzleAssignModal = ({
 
   useEffect(() => {
     if (open) {
-      fetchNozzles();
-      fetchPumps();
+      fetchAllData();
+      // Reset form when opening modal
+      setFormData({
+        nozzleman: "",
+        nozzle: "",
+        pump: "",
+        shift: "Morning",
+        assignedDate: new Date().toISOString().split('T')[0]
+      });
     }
   }, [open]);
+
+  // Fetch already assigned nozzles when date or shift changes
+  useEffect(() => {
+    if (formData.assignedDate && formData.shift) {
+      fetchAlreadyAssignedNozzles();
+    }
+  }, [formData.assignedDate, formData.shift]);
+
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([fetchNozzles(), fetchPumps()]);
+    } catch (error: any) {
+      console.error("Error fetching data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch required data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchNozzles = async () => {
     try {
       const response = await api.get("/api/nozzles");
-      setNozzles(response.data);
+      console.log("Nozzles data:", response.data);
+      setNozzles(response.data || []);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch nozzles",
-        variant: "destructive",
-      });
+      console.error("Failed to fetch nozzles:", error);
+      setNozzles([]);
     }
   };
 
   const fetchPumps = async () => {
     try {
       const response = await api.get("/api/pumps");
-      setPumps(response.data);
+      console.log("Pumps data:", response.data);
+      setPumps(response.data || []);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch pumps",
-        variant: "destructive",
+      console.error("Failed to fetch pumps:", error);
+      setPumps([]);
+    }
+  };
+
+  const fetchAlreadyAssignedNozzles = async () => {
+    try {
+      console.log("🔍 Fetching already assigned nozzles for:", {
+        date: formData.assignedDate,
+        shift: formData.shift
       });
+      
+      const response = await api.get("/api/assignments", {
+        params: {
+          date: formData.assignedDate,
+          shift: formData.shift,
+          status: "Active"
+        }
+      });
+      
+      // Extract nozzle IDs that are already assigned
+      const assignedNozzleIds = response.data
+        .filter((assignment: any) => assignment.nozzle?._id)
+        .map((assignment: any) => assignment.nozzle._id);
+      
+      console.log("📋 Already assigned nozzle IDs:", assignedNozzleIds);
+      setAlreadyAssignedNozzles(assignedNozzleIds);
+      
+    } catch (error) {
+      console.error("Failed to fetch assigned nozzles:", error);
+      setAlreadyAssignedNozzles([]);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if nozzle is already assigned
+    if (alreadyAssignedNozzles.includes(formData.nozzle)) {
+      toast({
+        title: "Error",
+        description: "This nozzle is already assigned for the selected date and shift",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (!formData.nozzleman || !formData.nozzle || !formData.pump) {
       toast({
         title: "Error",
@@ -107,6 +176,7 @@ export const NozzleAssignModal = ({
       });
       return;
     }
+    
     onSubmit(formData);
   };
 
@@ -122,13 +192,45 @@ export const NozzleAssignModal = ({
   };
 
   // Filter only active nozzlemen
-  const activeNozzlemen = nozzlemen;
+  const activeNozzlemen = Array.isArray(nozzlemen) 
+    ? nozzlemen.filter(nozzleman => 
+        nozzleman && 
+        nozzleman.status && 
+        nozzleman.status.toString().toLowerCase() === "active"
+      )
+    : [];
 
   // Filter only active nozzles
-  const activeNozzles = nozzles.filter(nozzle => nozzle.status === "Active");
+  const activeNozzles = Array.isArray(nozzles) 
+    ? nozzles.filter(nozzle => 
+        nozzle && 
+        nozzle.status && 
+        nozzle.status.toString().toLowerCase() === "active"
+      )
+    : [];
+
+  // Filter out already assigned nozzles
+  const availableNozzles = activeNozzles.filter(
+    nozzle => !alreadyAssignedNozzles.includes(nozzle._id)
+  );
 
   // Filter only active pumps
-  const activePumps = pumps.filter(pump => pump.status === "Active");
+  const activePumps = Array.isArray(pumps) 
+    ? pumps.filter(pump => 
+        pump && 
+        pump.status && 
+        pump.status.toString().toLowerCase() === "active"
+      )
+    : [];
+
+  console.log("🔍 Modal Data:", {
+    totalNozzles: nozzles.length,
+    activeNozzles: activeNozzles.length,
+    alreadyAssigned: alreadyAssignedNozzles.length,
+    availableNozzles: availableNozzles.length,
+    formData,
+    selectedNozzle: nozzles.find(n => n._id === formData.nozzle)?.number
+  });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -143,29 +245,33 @@ export const NozzleAssignModal = ({
             <Select 
               value={formData.nozzleman} 
               onValueChange={(value) => setFormData({ ...formData, nozzleman: value })}
+              disabled={loading}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select nozzleman" />
+                {loading ? (
+                  <SelectValue placeholder="Loading..." />
+                ) : (
+                  <SelectValue placeholder="Select nozzleman" />
+                )}
               </SelectTrigger>
               <SelectContent>
-                {activeNozzlemen.length === 0 ? (
+                {loading ? (
+                  <SelectItem value="loading" disabled>
+                    Loading nozzlemen...
+                  </SelectItem>
+                ) : activeNozzlemen.length === 0 ? (
                   <SelectItem value="no-data" disabled>
                     No active nozzlemen available
                   </SelectItem>
                 ) : (
                   activeNozzlemen.map((nozzleman) => (
                     <SelectItem key={nozzleman._id} value={nozzleman._id}>
-                      {nozzleman.name} ({nozzleman.employeeId})
+                      {nozzleman.name} ({nozzleman.employeeId || nozzleman._id.slice(-6)})
                     </SelectItem>
                   ))
                 )}
               </SelectContent>
             </Select>
-            {activeNozzlemen.length === 0 && (
-              <p className="text-sm text-amber-600">
-                No active nozzlemen available. Please activate a nozzleman first.
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -173,27 +279,38 @@ export const NozzleAssignModal = ({
             <Select 
               value={formData.nozzle} 
               onValueChange={handleNozzleChange}
+              disabled={loading}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select nozzle" />
+                {loading ? (
+                  <SelectValue placeholder="Loading..." />
+                ) : (
+                  <SelectValue placeholder="Select nozzle" />
+                )}
               </SelectTrigger>
               <SelectContent>
-                {activeNozzles.length === 0 ? (
+                {loading ? (
+                  <SelectItem value="loading" disabled>
+                    Loading nozzles...
+                  </SelectItem>
+                ) : availableNozzles.length === 0 ? (
                   <SelectItem value="no-data" disabled>
-                    No active nozzles available
+                    No available nozzles for {formData.shift} shift on {formData.assignedDate}
                   </SelectItem>
                 ) : (
-                  activeNozzles.map((nozzle) => (
+                  availableNozzles.map((nozzle) => (
                     <SelectItem key={nozzle._id} value={nozzle._id}>
-                      {nozzle.number} - {nozzle.pump.name} ({nozzle.fuelType})
+                      {nozzle.number || `Nozzle-${nozzle._id.slice(-6)}`} - 
+                      {nozzle.pump?.name || "Unknown Pump"} 
+                      ({nozzle.fuelType || "Unknown"})
                     </SelectItem>
                   ))
                 )}
               </SelectContent>
             </Select>
-            {activeNozzles.length === 0 && (
+            {!loading && alreadyAssignedNozzles.length > 0 && (
               <p className="text-sm text-amber-600">
-                No active nozzles available. Please activate a nozzle first.
+                {alreadyAssignedNozzles.length} nozzle(s) already assigned for {formData.shift} shift on {formData.assignedDate}
               </p>
             )}
           </div>
@@ -209,24 +326,13 @@ export const NozzleAssignModal = ({
                 <SelectValue placeholder="Auto-selected from nozzle" />
               </SelectTrigger>
               <SelectContent>
-                {activePumps.length === 0 ? (
-                  <SelectItem value="no-data" disabled>
-                    No active pumps available
+                {activePumps.map((pump) => (
+                  <SelectItem key={pump._id} value={pump._id}>
+                    {pump.name}
                   </SelectItem>
-                ) : (
-                  activePumps.map((pump) => (
-                    <SelectItem key={pump._id} value={pump._id}>
-                      {pump.name}
-                    </SelectItem>
-                  ))
-                )}
+                ))}
               </SelectContent>
             </Select>
-            {activePumps.length === 0 && (
-              <p className="text-sm text-amber-600">
-                No active pumps available. Please activate a pump first.
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -254,16 +360,18 @@ export const NozzleAssignModal = ({
               onChange={(e) => setFormData({ ...formData, assignedDate: e.target.value })}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               required
+              min={new Date().toISOString().split('T')[0]} // Prevent past dates
             />
           </div>
 
           <div className="bg-blue-50 p-3 rounded-md">
-            <h4 className="text-sm font-medium text-blue-800 mb-1">Assignment Rules:</h4>
+            <h4 className="text-sm font-medium text-blue-800 mb-1">Assignment Status:</h4>
             <ul className="text-xs text-blue-700 space-y-1">
-              <li>• Only Active nozzlemen can be assigned</li>
-              <li>• Only Active nozzles can be assigned</li>
-              <li>• Only Active pumps can be used</li>
-              <li>• Pump is auto-selected based on nozzle</li>
+              <li>• Nozzlemen Available: {activeNozzlemen.length}</li>
+              <li>• Nozzles Available: {availableNozzles.length} of {activeNozzles.length}</li>
+              <li>• Already Assigned: {alreadyAssignedNozzles.length} nozzle(s)</li>
+              <li>• Date: {formData.assignedDate}</li>
+              <li>• Shift: {formData.shift}</li>
             </ul>
           </div>
 
@@ -274,15 +382,15 @@ export const NozzleAssignModal = ({
             <Button 
               type="submit" 
               disabled={
+                loading ||
                 !formData.nozzleman || 
                 !formData.nozzle || 
                 !formData.pump ||
                 activeNozzlemen.length === 0 ||
-                activeNozzles.length === 0 ||
-                activePumps.length === 0
+                availableNozzles.length === 0
               }
             >
-              Assign Nozzle
+              {loading ? "Loading..." : "Assign Nozzle"}
             </Button>
           </div>
         </form>
