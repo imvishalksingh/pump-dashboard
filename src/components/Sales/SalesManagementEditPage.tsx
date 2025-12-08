@@ -1632,7 +1632,7 @@ export const SalesManagementEditPage = () => {
             </div>
 
             {/* STATS BAR */}
-            <div className="p-3 bg-white border-b">
+            {/* <div className="p-3 bg-white border-b">
               <div className="grid grid-cols-6 gap-4">
                 <div className="text-center">
                   <div className="text-xs text-gray-500 uppercase font-semibold">Total</div>
@@ -1669,7 +1669,7 @@ export const SalesManagementEditPage = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* LEDGER TABLE */}
             <div className="flex-1 overflow-y-auto p-6" id="ledger-table">
